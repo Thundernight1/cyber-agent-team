@@ -1,0 +1,9 @@
+TASK: Review the recent modifications made to 'core/base_agent.py' to evaluate code quality, execution safety, and architectural integrity.
+
+EVALUATION CRITERIA:
+1. Context Slicing Safety: Analyze `self.conversation_history = self.conversation_history[:-2]`. Verify if it safely handles rapid asynchronous state changes or edge cases.
+2. Memory Reset Impact: Assess the `self.reset()` call. Verify that clearing the agent's internal memory does not corrupt or desync the `SharedState` object used by the Orchestrator.
+3. Prompt Injection Resilience: Evaluate if the new `_default_system_prompt` rules are structurally sound enough to prevent LLM hallucination overrides.
+
+OUTPUT FORMAT:
+Output ONLY technical findings. If a logic flaw, race condition, or memory leak is detected, provide the direct Python code correction. Do not use conversational filler or introductory summaries.

@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      cache_from:
+        - type=gha
+    container_name: cyber-agent-team
+    ports:
+      - "8443:8443"
+    volumes:
+      # Mount only source directories for development, exclude venv
+      - ./agents:/app/agents
+      - ./cli:/app/cli
+      - ./core:/app/core
+      - ./dashboard:/app/dashboard
+      - ./tools:/app/tools
+      - ./orchestrator:/app/orchestrator
+      - ./config:/app/config
+      # Optional: mount the entire app for development with watch
+      # - .:/app:cached
+      # - /app/venv
+    environment:
+      - LOG_LEVEL=DEBUG
+      - DASHBOARD_HOST=0.0.0.0
+      - DASHBOARD_PORT=8443
+      - PYTHONUNBUFFERED=1
+    env_file: .env
+    command: python -m uvicorn dashboard.app:app --host 0.0.0.0 --port 8443 --reload
+    networks:
+      - agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8443/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    # Restart policy for stability
+    restart: unless-stopped
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      cache_from:
+        - type=gha
+    container_name: cyber-agent-tests
+    volumes:
+      - ./agents:/app/agents
+      - ./cli:/app/cli
+      - ./core:/app/core
+      - ./dashboard:/app/dashboard
+      - ./tools:/app/tools
+      - ./orchestrator:/app/orchestrator
+      - ./config:/app/config
+      - ./tests:/app/tests
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: pytest tests/ -v --cov=. --cov-report=html --cov-report=term-missing
+    networks:
+      - agent-network
+    depends_on:
+      app:
+        condition: service_healthy
+    # Only run on explicit command
+    profiles:
+      - test
+
+networks:
+  agent-network:
+    driver: bridge
