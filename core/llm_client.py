@@ -3,18 +3,16 @@ Ollama Cloud + Local LLM Client
 All agents access models through this client.
 Anthropic-compatible API and native Ollama API support.
 """
+
 import json
-import asyncio
-import aiohttp
 import logging
-from typing import Dict, List, Optional, AsyncGenerator
 from dataclasses import dataclass
-from config.settings import (
-    OLLAMA_CLOUD_BASE_URL,
-    OLLAMA_LOCAL_BASE_URL,
-    OLLAMA_API_KEY,
-    USE_CLOUD,
-)
+from typing import Dict, List, Optional
+
+import aiohttp
+
+from config.settings import (OLLAMA_API_KEY, OLLAMA_CLOUD_BASE_URL,
+                             OLLAMA_LOCAL_BASE_URL)
 
 logger = logging.getLogger("cyber-agent.llm")
 
@@ -34,6 +32,7 @@ class OllamaClient:
     Unified client for Ollama Cloud and local models.
     - Cloud models: ollama.com API (API key required)
     - Local models: localhost:11434 (ollama serve)
+    - Routed calls: use AIRouter for task-aware model + key selection
     """
 
     def __init__(self, api_key: str = None, prefer_cloud: bool = True):
@@ -41,6 +40,15 @@ class OllamaClient:
         self.prefer_cloud = prefer_cloud
         self._cloud_disabled = False
         self._session: Optional[aiohttp.ClientSession] = None
+        self._router = None  # Lazy-loaded AIRouter
+
+    def _get_router(self):
+        """Lazy-load AIRouter singleton to avoid circular imports."""
+        if self._router is None:
+            from core.ai_router import get_router
+
+            self._router = get_router()
+        return self._router
 
     def _get_base_url(self, model: str) -> str:
         """Return cloud or local base URL for the model."""
@@ -52,11 +60,12 @@ class OllamaClient:
             return OLLAMA_CLOUD_BASE_URL
         return OLLAMA_LOCAL_BASE_URL
 
-    def _get_headers(self, model: str) -> Dict:
-        """Build API headers."""
+    def _get_headers(self, model: str, api_key: str = None) -> Dict:
+        """Build API headers. Uses provided api_key if given (from key pool)."""
         headers = {"Content-Type": "application/json"}
-        if self._get_base_url(model) == OLLAMA_CLOUD_BASE_URL and self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        key = api_key or self.api_key
+        if self._get_base_url(model) == OLLAMA_CLOUD_BASE_URL and key:
+            headers["Authorization"] = f"Bearer {key}"
         return headers
 
     async def _get_session(self) -> aiohttp.ClientSession:
@@ -80,6 +89,7 @@ class OllamaClient:
         temperature: float = 0.7,
         stream: bool = False,
         format: str = None,
+        api_key: str = None,
     ) -> LLMResponse:
         """
         Send request to Ollama chat endpoint.
@@ -91,9 +101,10 @@ class OllamaClient:
             temperature: Temperature (0.0 - 1.0)
             stream: Streaming mode
             format: Output format ("json" supported)
+            api_key: Override API key (used by AIRouter key pool)
         """
         base_url = self._get_base_url(model)
-        headers = self._get_headers(model)
+        headers = self._get_headers(model, api_key=api_key)
         session = await self._get_session()
 
         payload = {
@@ -125,7 +136,9 @@ class OllamaClient:
                     if base_url == OLLAMA_CLOUD_BASE_URL:
                         if resp.status in {401, 403}:
                             self._cloud_disabled = True
-                            logger.warning("Cloud auth failed; switching to local for this session.")
+                            logger.warning(
+                                "Cloud auth failed; switching to local for this session."
+                            )
                         else:
                             logger.warning("Cloud failed; switching to local fallback.")
                         return await self._fallback_local(
@@ -154,6 +167,40 @@ class OllamaClient:
                     model, messages, system_prompt, temperature
                 )
             raise
+
+    # ---------------------------------------------------------
+    # ROUTED CHAT — Task-aware model + key pool selection
+    # ---------------------------------------------------------
+    async def chat_routed(
+        self,
+        task_type: str,
+        messages: List[Dict[str, str]],
+        system_prompt: str = None,
+        temperature: float = 0.7,
+    ) -> LLMResponse:
+        """
+        Route chat call through AIRouter.
+        Selects model based on task_type and acquires an API key slot.
+        Blocks if all key slots are busy (rate-limit protection).
+
+        Args:
+            task_type: e.g. "vuln_analysis", "network_scan", "report"
+            messages: Conversation messages
+            system_prompt: System prompt
+            temperature: LLM temperature
+        """
+        router = self._get_router()
+
+        async def _call(api_key: str, model: str) -> LLMResponse:
+            return await self.chat(
+                model=model,
+                messages=messages,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                api_key=api_key if api_key else None,
+            )
+
+        return await router.route(task_type=task_type, call_fn=_call)
 
     async def _fallback_local(
         self, model, messages, system_prompt, temperature
@@ -276,7 +323,9 @@ class OllamaClient:
 
         # Cloud kontrol
         try:
-            headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+            headers = (
+                {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+            )
             async with session.get(
                 f"{OLLAMA_CLOUD_BASE_URL}/tags",
                 headers=headers,
@@ -297,6 +346,10 @@ class OllamaClient:
             pass
 
         return result
+
+    def router_status(self) -> Dict:
+        """Return AI Router pool status (key slots, busy counts, etc.)."""
+        return self._get_router().summary()
 
 
 # Singleton instance

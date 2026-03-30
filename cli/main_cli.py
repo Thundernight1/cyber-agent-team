@@ -3,20 +3,22 @@
 Cyber Agent Team - CLI Arayüzü
 İnteraktif komut satırı ile ajan ekibini yönet.
 """
-import asyncio
+
 import argparse
+import asyncio
 import json
-import sys
-import os
 import logging
+import os
+import sys
 from datetime import datetime
 
 # Proje kök dizinini path'e ekle
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from config.settings import MODEL_ASSIGNMENTS, TEAM_ROSTER
 from orchestrator.purple_lead import PurpleLeadOrchestrator
 from tools.security_tools import ToolFactory
-from config.settings import TEAM_ROSTER, MODEL_ASSIGNMENTS
+
 
 # Renk kodları
 class C:
@@ -30,6 +32,7 @@ class C:
     BOLD = "\033[1m"
     DIM = "\033[2m"
     RESET = "\033[0m"
+
 
 BANNER = f"""
 {C.RED}╔══════════════════════════════════════════════════════════════╗
@@ -60,9 +63,11 @@ def print_agent(agent_id: str, profile):
         "support": C.MAGENTA,
     }
     color = layer_colors.get(profile.layer, C.WHITE)
-    print(f"  {color}[{profile.layer.upper():>10}]{C.RESET} "
-          f"{C.BOLD}{profile.name:>15}{C.RESET} "
-          f"- {profile.description}")
+    print(
+        f"  {color}[{profile.layer.upper():>10}]{C.RESET} "
+        f"{C.BOLD}{profile.name:>15}{C.RESET} "
+        f"- {profile.description}"
+    )
     print(f"  {C.DIM}{'':>12} Model: {profile.model}{C.RESET}")
 
 
@@ -81,9 +86,11 @@ async def interactive_mode():
 
     print(f"\n{C.GREEN}✓ System initialized{C.RESET}")
     print(f"  Session: {init_result['session_id']}")
-    print(f"  Agents: {init_result['agents']}")
-    print(f"  Cloud: {'✓' if init_result['llm_health']['cloud'] else '✗'}")
-    print(f"  Local: {'✓' if init_result['llm_health']['local'] else '✗'}")
+    print(f"  Agents: {init_result.get('agents_defined', 'N/A')}")
+
+    llm_health = init_result.get("llm_health", {"cloud": False, "local": False})
+    print(f"  Cloud: {'✓' if llm_health.get('cloud') else '✗'}")
+    print(f"  Local: {'✓' if llm_health.get('local') else '✗'}")
 
     print(f"\n{C.YELLOW}Commands:{C.RESET}")
     print(f"  {C.BOLD}scan <target>{C.RESET}       - Full pentest assessment")
@@ -144,7 +151,9 @@ async def interactive_mode():
                 print_header(f"VULNERABILITY ASSESSMENT: {target}")
                 result = await orchestrator.run_vuln_assessment(target)
                 vulns = result.get("vulnerabilities", [])
-                print(f"\n{C.GREEN}✓ Completed - {len(vulns)} vulnerabilities found{C.RESET}")
+                print(
+                    f"\n{C.GREEN}✓ Completed - {len(vulns)} vulnerabilities found{C.RESET}"
+                )
 
             elif cmd == "tool" and len(parts) >= 3:
                 tool_name = parts[1]
@@ -154,9 +163,15 @@ async def interactive_mode():
                 if "error" in result:
                     print(f"{C.RED}✗ Error: {result['error']}{C.RESET}")
                 else:
-                    print(f"{C.GREEN}✓ Completed ({result.get('duration_ms', 0)}ms){C.RESET}")
+                    print(
+                        f"{C.GREEN}✓ Completed ({result.get('duration_ms', 0)}ms){C.RESET}"
+                    )
                     if result.get("output"):
-                        print(json.dumps(result["output"], indent=2, ensure_ascii=False)[:2000])
+                        print(
+                            json.dumps(result["output"], indent=2, ensure_ascii=False)[
+                                :2000
+                            ]
+                        )
 
             elif cmd == "agent" and len(parts) >= 3:
                 agent_id = parts[1]
@@ -181,15 +196,20 @@ async def interactive_mode():
             elif cmd == "state":
                 print_header("CURRENT STATE")
                 state = orchestrator.get_state()
-                print(json.dumps(state, indent=2, ensure_ascii=False, default=str)[:3000])
+                print(
+                    json.dumps(state, indent=2, ensure_ascii=False, default=str)[:3000]
+                )
 
             elif cmd == "export":
                 print_header("REPORT EXPORT")
                 state = orchestrator.get_state()
-                filename = f"pentest_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                filename = (
+                    f"pentest_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                )
                 filepath = os.path.join(
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "reports", filename
+                    "reports",
+                    filename,
                 )
                 os.makedirs(os.path.dirname(filepath), exist_ok=True)
                 with open(filepath, "w", encoding="utf-8") as f:
@@ -210,9 +230,7 @@ async def interactive_mode():
             else:
                 # Serbest metin: orkestratöre gönder
                 print(f"{C.DIM}Orchestrator thinking...{C.RESET}")
-                result = await orchestrator.run_single_agent(
-                    "orchestrator", user_input
-                )
+                result = await orchestrator.run_single_agent("orchestrator", user_input)
                 if result.output:
                     print(f"\n{C.CYAN}{result.output}{C.RESET}")
                 if result.error:
@@ -246,20 +264,24 @@ def cli_main():
     )
 
     if args.scan:
+
         async def run():
             orch = PurpleLeadOrchestrator()
             await orch.initialize()
             result = await orch.run_full_assessment(args.scan)
             print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
             await orch.llm.close()
+
         asyncio.run(run())
     elif args.recon:
+
         async def run():
             orch = PurpleLeadOrchestrator()
             await orch.initialize()
             result = await orch.run_recon_only(args.recon)
             print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
             await orch.llm.close()
+
         asyncio.run(run())
     else:
         asyncio.run(interactive_mode())

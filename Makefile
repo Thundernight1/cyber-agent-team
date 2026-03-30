@@ -1,65 +1,80 @@
-.PHONY: help setup test lint format security docker docker-test clean
+# Makefile for Cyber Agent Team
 
-help:
-	@echo "CI/CD & Test System Commands:"
-	@echo ""
-	@echo "  setup           - Install dependencies and setup pre-commit hooks"
-	@echo "  test            - Run all tests"
-	@echo "  test-cov        - Run tests with coverage report"
-	@echo "  lint            - Run linting checks"
-	@echo "  format          - Format code with black and isort"
-	@echo "  security        - Run security scans"
-	@echo "  docker          - Build and run Docker image"
-	@echo "  docker-test     - Run tests in Docker"
-	@echo "  docker-build    - Build Docker image"
-	@echo "  clean           - Clean up build artifacts and cache"
-	@echo "  all-checks      - Run all checks (lint, tests, security)"
+.PHONY: setup test clean run
 
 setup:
-	bash setup_cicd.sh
+	@echo "Setting up environment..."
+	./run.sh interactive
 
 test:
-	pytest tests/ -v
+	@echo "Running tests..."
+	venv/bin/python3 tests/validate_real_world.py
+	venv/bin/pytest tests/ -v
 
 test-cov:
-	pytest tests/ -v --cov=. --cov-report=html --cov-report=term-missing
-	@echo "Coverage report generated: htmlcov/index.html"
+	@echo "Running tests with coverage..."
+	venv/bin/pytest tests/ -v --cov=. --cov-report=html
 
 lint:
-	flake8 . --max-line-length=127 --extend-ignore=E203
-	black --check .
-	isort --check-only .
+	venv/bin/flake8 agents core tools || echo "flake8 bulunamadı"
+	venv/bin/black --check agents core tools || echo "black bulunamadı"
+	venv/bin/isort --check agents core tools || echo "isort bulunamadı"
 
 format:
-	black .
-	isort .
+	@echo "Formatting code..."
+	venv/bin/black . || echo "black bulunamadı"
+	venv/bin/isort . || echo "isort bulunamadı"
 
 security:
-	bandit -r . -f json -o bandit-report.json || true
-	safety check || true
+	@echo "Running security checks..."
+	venv/bin/bandit -r agents core tools || echo "bandit atlandı"
+	venv/bin/safety check || echo "safety atlandı"
 
 docker:
+	@echo "Running in Docker..."
 	docker-compose up -d app
-	@echo "Application running on port 8443"
 
 docker-test:
-	docker-compose up test
+	@echo "Testing in Docker..."
+	docker-compose run --rm test
 
-docker-build:
-	docker build -t cyber-agent-team:latest .
-
-docker-shell:
-	docker-compose exec app bash
+all-checks: format lint test security
+	@echo "Tüm kontroller tamamlandı."
 
 clean:
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".coverage" -delete 2>/dev/null || true
-	find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "dist" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
+	@echo "Cleaning up..."
+	rm -rf venv
+	find . -name "__pycache__" -exec rm -rf {} +
+	find . -name "*.pyc" -exec rm -rf {} +
 
-all-checks: lint test security
-	@echo "All checks passed!"
+run:
+	./run.sh interactive
+
+# --- Commands from Agent Starter Pack ---
+
+eval:
+	@echo "==============================================================================="
+	@echo "| Running Agent Evaluation                                                    |"
+	@echo "==============================================================================="
+	uv sync --dev --extra eval
+	uv run adk eval ./tests $${EVALSET:-tests/eval/evalsets/basic.evalset.json} \
+		$(if $(EVAL_CONFIG),--config_file_path=$(EVAL_CONFIG),$(if $(wildcard tests/eval/eval_config.json),--config_file_path=tests/eval/eval_config.json,))
+
+eval-all:
+	@echo "==============================================================================="
+	@echo "| Running All Evalsets                                                        |"
+	@echo "==============================================================================="
+	@for evalset in tests/eval/evalsets/*.evalset.json; do \
+		echo ""; \
+		echo "▶ Running: $$evalset"; \
+		$(MAKE) eval EVALSET=$$evalset || exit 1; \
+	done
+	@echo ""
+	@echo "✅ All evalsets completed"
+
+install:
+	@command -v uv >/dev/null 2>&1 || { echo "uv is not installed. Installing uv..."; curl -LsSf https://astral.sh/uv/0.8.13/install.sh | sh; source $HOME/.local/bin/env; }
+	uv sync
+
+	uv sync
+

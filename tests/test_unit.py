@@ -1,6 +1,7 @@
 """
 Unit tests for core functionality
 """
+
 import pytest
 
 
@@ -26,5 +27,6 @@ class TestConfiguration:
     def test_env_loading(self):
         """Test environment variable loading"""
         import os
+
         # This is a placeholder test
         assert os.getenv("PATH") is not None

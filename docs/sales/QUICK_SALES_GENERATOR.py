@@ -8,11 +8,12 @@ Usage:
   python3 QUICK_SALES_GENERATOR.py --list companies.csv
 """
 
+import argparse
 import asyncio
 import json
-from tools.security_tools import ToolFactory
 import sys
-import argparse
+
+from tools.security_tools import ToolFactory
 
 SEATTLE_TECH_COMPANIES = [
     ("Amazon", "amazon.com", "Chief Security Officer"),
@@ -27,51 +28,52 @@ SEATTLE_TECH_COMPANIES = [
     ("Starbucks", "starbucks.com", "Chief Digital Officer"),
 ]
 
+
 async def generate_cold_email(company_name: str, domain: str, role: str):
     """Generate personalized cold email with actual recon findings"""
-    
+
     print(f"\n{'='*70}")
     print(f"🎯 COLD EMAIL GENERATOR: {company_name}")
     print(f"{'='*70}\n")
-    
+
     tools = ToolFactory.initialize()
-    findings = {
-        "dns": None,
-        "whois": None,
-        "osint": None
-    }
-    
+    findings = {"dns": None, "whois": None, "osint": None}
+
     # Run OSINT on their domain
     print(f"[1/3] Running DNS enumeration on {domain}...")
-    dns = tools.get('dns')
+    dns = tools.get("dns")
     if dns:
-        result = await dns.run(target=domain, record_type='A')
-        if result.status == 'success':
-            findings['dns'] = result.output
-            print(f"      ✅ DNS resolved: {result.output.get('raw_response', '')[:100]}")
-    
+        result = await dns.run(target=domain, record_type="A")
+        if result.status == "success":
+            findings["dns"] = result.output
+            print(
+                f"      ✅ DNS resolved: {result.output.get('raw_response', '')[:100]}"
+            )
+
     print(f"\n[2/3] Running OSINT recon on {domain}...")
-    shodan = tools.get('shodan')
+    shodan = tools.get("shodan")
     if shodan:
-        result = await shodan.run(target=domain, search_type='host')
-        if result.status == 'success':
-            findings['osint'] = result.output
-            tools_used = [t.get('tool') for t in result.output.get('osint_tools', [])]
+        result = await shodan.run(target=domain, search_type="host")
+        if result.status == "success":
+            findings["osint"] = result.output
+            tools_used = [t.get("tool") for t in result.output.get("osint_tools", [])]
             print(f"      ✅ OSINT completed: tools={tools_used}")
-    
+
     print(f"\n[3/3] Running Whois lookup on {domain}...")
-    whois = tools.get('whois')
+    whois = tools.get("whois")
     if whois:
         result = await whois.run(target=domain)
-        if result.status == 'success':
-            findings['whois'] = result.output
-            print(f"      ✅ Whois completed: registrar={result.output.get('registrar')}")
-    
+        if result.status == "success":
+            findings["whois"] = result.output
+            print(
+                f"      ✅ Whois completed: registrar={result.output.get('registrar')}"
+            )
+
     # Generate cold email
     print(f"\n{'─'*70}")
     print("📧 GENERATED COLD EMAIL:")
     print(f"{'─'*70}\n")
-    
+
     email = f"""Subject: Security findings for {company_name}
 
 Hi [First Name],
@@ -102,14 +104,14 @@ Best,
 P.S. - We specialize in helping Seattle tech companies find security gaps 
        before attackers do. Let me know if you'd like to chat.
 """
-    
+
     print(email)
-    
+
     # Generate follow-up if no response
     print(f"\n{'─'*70}")
     print("📧 FOLLOW-UP EMAIL (If no response after 5 days):")
     print(f"{'─'*70}\n")
-    
+
     followup = f"""Subject: Re: Security findings for {company_name} - 2-min question
 
 Hi [First Name],
@@ -127,62 +129,68 @@ If not, I'll leave you alone - totally understand.
 
 [Your Name]
 """
-    
+
     print(followup)
-    
+
     # Save to file
     filename = f"email_{company_name.lower().replace(' ', '_')}.txt"
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         f.write(email)
-    
+
     print(f"\n{'='*70}")
     print(f"✅ Email saved to: {filename}")
     print(f"{'='*70}\n")
-    
+
     return email, findings
 
 
 async def batch_generate_emails(companies: list = None):
     """Generate emails for multiple companies"""
-    
+
     if not companies:
         companies = SEATTLE_TECH_COMPANIES[:3]  # Start with top 3
-    
+
     for company_name, domain, role in companies:
         try:
             await generate_cold_email(company_name, domain, role)
         except Exception as e:
             print(f"❌ Error processing {company_name}: {str(e)}")
-        
+
         # Space out requests
         await asyncio.sleep(2)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate personalized cold emails with security recon'
+        description="Generate personalized cold emails with security recon"
     )
-    parser.add_argument('--company', type=str, help='Single company domain to scan')
-    parser.add_argument('--list', type=str, help='CSV file with companies')
-    parser.add_argument('--batch', action='store_true', help='Run on default Seattle companies')
-    
+    parser.add_argument("--company", type=str, help="Single company domain to scan")
+    parser.add_argument("--list", type=str, help="CSV file with companies")
+    parser.add_argument(
+        "--batch", action="store_true", help="Run on default Seattle companies"
+    )
+
     args = parser.parse_args()
-    
+
     if args.company:
         # Single company
-        asyncio.run(generate_cold_email(
-            company_name=args.company.split('.')[0].upper(),
-            domain=args.company,
-            role="Security Officer"
-        ))
+        asyncio.run(
+            generate_cold_email(
+                company_name=args.company.split(".")[0].upper(),
+                domain=args.company,
+                role="Security Officer",
+            )
+        )
     elif args.list:
         # From CSV
         companies = []
         with open(args.list) as f:
             for line in f:
-                parts = line.strip().split(',')
+                parts = line.strip().split(",")
                 if len(parts) >= 2:
-                    companies.append((parts[0], parts[1], parts[2] if len(parts) > 2 else "CTO"))
+                    companies.append(
+                        (parts[0], parts[1], parts[2] if len(parts) > 2 else "CTO")
+                    )
         asyncio.run(batch_generate_emails(companies))
     elif args.batch:
         # Default batch

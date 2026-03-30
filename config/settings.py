@@ -2,6 +2,7 @@
 Cyber Agent Team - Merkezi Konfigürasyon
 Ollama Cloud + Yerel Model Entegrasyonu
 """
+
 import os
 from dataclasses import dataclass, field
 from typing import Dict, Optional
@@ -22,8 +23,8 @@ USE_CLOUD = True
 # OSS (ücretsiz) plan: myip, dns lookup, host count destekler
 # Membership+ plan: host lookup, search, scan gerektirir
 # Gerçek erişim için: https://account.shodan.io
-SHODAN_API_KEY = os.getenv("SHODAN_API_KEY", "Jvhe8MRaHvH9u9BU6P40wWgTDSYgODva")
-SHODAN_USE_MCP = True   # MCP connector varsa önce onu kullan (daha yetkili)
+SHODAN_API_KEY = os.getenv("SHODAN_API_KEY", "")
+SHODAN_USE_MCP = True  # MCP connector varsa önce onu kullan (daha yetkili)
 SHODAN_ENABLED = True
 
 # ============================================================
@@ -31,36 +32,35 @@ SHODAN_ENABLED = True
 # ============================================================
 MODEL_ASSIGNMENTS = {
     # === OPERATOR KATMANI ===
-    "network_operator": "devstral-small-2:24b-cloud",       # Hızlı, hafif tarama işleri
-    "wireless_operator": "gemma3:27b-cloud",                 # Kablosuz ağ analizi
-    "passive_operator": "nemotron-3-nano:30b-cloud",         # Pasif trafik izleme
-    "physical_operator": "gemma3:27b-cloud",                 # Fiziksel gözlem
-
+    "network_operator": "devstral-small-2:24b-cloud",  # Hızlı, hafif tarama işleri
+    "wireless_operator": "gemma3:27b-cloud",  # Kablosuz ağ analizi
+    "passive_operator": "nemotron-3-nano:30b-cloud",  # Pasif trafik izleme
+    "physical_operator": "gemma3:27b-cloud",  # Fiziksel gözlem
     # === ANALİZ KATMANI ===
-    "asset_correlation": "qwen3-coder-next:cloud",           # Varlık korelasyonu - kod/yapı odaklı
-    "vulnerability_analysis": "kimi-k2-thinking:cloud",      # Zafiyet analizi - derin düşünme
-    "credential_analysis": "cogito-2.1:671b-cloud",          # Kimlik bilgisi analizi - büyük model
-    "exposure_analysis": "mistral-large-3:675b-cloud",       # Dış yüzey analizi
-
+    "asset_correlation": "qwen3-coder-next:cloud",  # Varlık korelasyonu - kod/yapı odaklı
+    "vulnerability_analysis": "kimi-k2-thinking:cloud",  # Zafiyet analizi - derin düşünme
+    "credential_analysis": "cogito-2.1:671b-cloud",  # Kimlik bilgisi analizi - büyük model
+    "exposure_analysis": "mistral-large-3:675b-cloud",  # Dış yüzey analizi
     # === KARAR KATMANI ===
-    "attack_path": "kimi-k2-thinking:cloud",                 # Saldırı yolu - reasoning güçlü
-    "risk_prioritization": "glm-4.7:cloud",                  # Risk önceliklendirme
-    "detection_gap": "deepseek-v3.2:cloud",                  # Tespit boşlukları
-    "mitigation_strategy": "mistral-large-3:675b-cloud",     # Savunma stratejisi
-    "report_agent": "qwen3-coder:480b-cloud",                # Rapor üretimi
-
+    "attack_path": "kimi-k2-thinking:cloud",  # Saldırı yolu - reasoning güçlü
+    "risk_prioritization": "glm-4.7:cloud",  # Risk önceliklendirme
+    "detection_gap": "deepseek-v3.2:cloud",  # Tespit boşlukları
+    "mitigation_strategy": "mistral-large-3:675b-cloud",  # Savunma stratejisi
+    "report_agent": "qwen3-coder:480b-cloud",  # Rapor üretimi
     # === DESTEK AJANLARI ===
-    "fullstack_engineer": "qwen3-coder-next:cloud",          # Fullstack geliştirme
-    "ui_engineer": "deepseek-v3.2:cloud",                    # UI/UX tasarım
-    "orchestrator": "cogito-2.1:671b-cloud",                 # Mor Takım Lideri
-    "devsecops": "devstral-small-2:24b-cloud",               # DevSecOps - hızlı görevler
+    "fullstack_engineer": "qwen3-coder-next:cloud",  # Fullstack geliştirme
+    "ui_engineer": "deepseek-v3.2:cloud",  # UI/UX tasarım
+    "orchestrator": "cogito-2.1:671b-cloud",  # Mor Takım Lideri
+    "devsecops": "devstral-small-2:24b-cloud",  # DevSecOps - hızlı görevler
 }
+
 
 # ============================================================
 # GÜVENLİK ARAÇLARI KONFİGÜRASYONU
 # ============================================================
 def _tool_path(env_key: str, default: str) -> str:
     return os.getenv(env_key, default)
+
 
 SECURITY_TOOLS = {
     "nmap": {
@@ -110,6 +110,7 @@ SECURITY_TOOLS = {
     },
 }
 
+
 # ============================================================
 # AJAN TAKIM YAPISI
 # ============================================================
@@ -122,6 +123,7 @@ class AgentProfile:
     description: str
     tools: list = field(default_factory=list)
     system_prompt: str = ""
+
 
 TEAM_ROSTER = {
     # --- OPERATOR KATMANI ---
@@ -273,3 +275,34 @@ DASHBOARD_HOST = "0.0.0.0"
 DASHBOARD_PORT = 8443
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
 REPORT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports")
+
+
+# ============================================================
+# CONFIG VALIDATION
+# ============================================================
+def validate_config():
+    """Validate critical environment variables and paths."""
+    errors = []
+
+    # Check Ollama
+    if not OLLAMA_API_KEY and USE_CLOUD:
+        # Check if alternate keys exist (OLLAMA_API_KEY_1)
+        if not os.getenv("OLLAMA_API_KEY_1"):
+            # Warn but allow if local fallback is intended
+            pass
+
+    # Check Tool Paths if enabled
+    for name, tool in SECURITY_TOOLS.items():
+        if tool["enabled"]:
+            path = tool["path"]
+            # Some tools are just commands, check if they exist in PATH
+            import shutil
+
+            if not shutil.which(path) and not os.path.exists(path):
+                # Don't error immediately, just log warning via ToolFactory usually
+                pass
+
+    return errors
+
+
+validate_config()

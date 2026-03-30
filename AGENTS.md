@@ -11,8 +11,16 @@
 - **Docker**: `make docker` (builds and runs app on :8443)
 - **All checks**: `make all-checks` (lint, test, security)
 
+## ⚠️ EXECUTION RULES (2026-02-21 güncellendi)
+- **ASLA** `asyncio.gather()` ile paralel LLM çağrısı yapma
+- Tüm ajanlar SIRALI çalışır: bir ajan bitmeden sonraki başlamaz
+- `run_single_task(task_type, ...)` → sadece 1 model çağrılır
+- 17 ajan = tanımlı profil listesi; hepsi aynı anda ÇALIŞMAZ
+- Model router: görev tipine göre yalnızca 1 model seçilir
+
 ## Architecture & Structure
 **3-Layer Agent Architecture**: Operator → Analysis → Decision → Support
+**Execution**: STRICTLY SEQUENTIAL — no asyncio.gather on LLM calls
 
 **Core Components**:
 - `core/base_agent.py` - BaseAgent class, TaskResult dataclass, AgentLayer/AgentStatus enums

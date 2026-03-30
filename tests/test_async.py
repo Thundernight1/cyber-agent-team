@@ -1,6 +1,7 @@
 """
 Async tests for FastAPI endpoints
 """
+
 import pytest
 
 

@@ -63,3 +63,6 @@ junit.xml
 
 # CI/CD
 .github/workflows/*.log
+
+# Unused frameworks
+.letta/

@@ -1,4 +1,0 @@
-[bandit]
-exclude_dirs = ['/test', '/venv', '/tests', '/.venv']
-skips = []
-tests = []
