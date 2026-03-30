@@ -40,9 +40,7 @@ class EvidenceValidator:
                 for host in output["hosts"]:
                     if host.get("ip") == target:
                         for p in host.get("ports", []):
-                            if int(p.get("port")) == int(port) and "open" in p.get(
-                                "state", ""
-                            ):
+                            if int(p.get("port")) == int(port) and "open" in p.get("state", ""):
                                 return True
 
             # Raw string check (fallback)
@@ -61,9 +59,7 @@ class EvidenceValidator:
         if source_tool:
             has_log = any(log.get("tool_name") == source_tool for log in raw_logs)
             if not has_log:
-                logger.warning(
-                    f"Finding claims source {source_tool} but no logs found."
-                )
+                logger.warning(f"Finding claims source {source_tool} but no logs found.")
                 return False
 
         return True

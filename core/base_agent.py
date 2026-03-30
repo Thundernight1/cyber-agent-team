@@ -51,9 +51,7 @@ class AgentTask:
     target: str = ""
     source_agent: str = "System"
     status: str = "pending"
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -125,9 +123,7 @@ class SharedState:
     detection_gaps: list[Any] = field(default_factory=list)
     mitigation_plan: list[Any] = field(default_factory=list)
 
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def add_task(self, task: AgentTask):
         """Insert task into queue sorted by priority (lowest int = highest priority)."""
@@ -273,16 +269,10 @@ class BaseAgent:
             tool_name = tool_result.get("tool_name", "tool")
             exit_code = tool_result.get("exit_code", "?")
             stdout_snip = str(tool_result.get("stdout", ""))[:200]
-            evidence_summary = (
-                f"\n[Evidence from {tool_name}] exit={exit_code}\n{stdout_snip}"
-            )
+            evidence_summary = f"\n[Evidence from {tool_name}] exit={exit_code}\n{stdout_snip}"
 
         self.logger.info(
-            f"[{self.name}] Processing: {task[:60]}"
-            + (" | tool evidence available" if tool_result else " | no tool evidence")
+            f"[{self.name}] Processing: {task[:60]}" + (" | tool evidence available" if tool_result else " | no tool evidence")
         )
 
-        return (
-            f"Agent {self.name} ({self.role}) processed task: '{task}'"
-            + evidence_summary
-        )
+        return f"Agent {self.name} ({self.role}) processed task: '{task}'" + evidence_summary

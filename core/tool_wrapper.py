@@ -97,9 +97,7 @@ class ToolWrapper:
             )
 
             try:
-                stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    process.communicate(), timeout=timeout
-                )
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(process.communicate(), timeout=timeout)
             except asyncio.TimeoutError:
                 process.kill()
                 return ToolResult(

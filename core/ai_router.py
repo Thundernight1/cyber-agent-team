@@ -36,11 +36,13 @@ ALL_TASK_MODELS: dict[str, str] = {
     "passive_monitor": "nemotron-3-nano:30b-cloud",
 }
 
+
 def get_model_for_task(task_type: str) -> str:
     """Görev tipi → tek model. Bilinmiyorsa varsayılan."""
     model = ALL_TASK_MODELS.get(task_type, DEFAULT_MODEL)
     logger.debug(f"[Router] '{task_type}' → '{model}'")
     return model
+
 
 class AIRouter:
     """
@@ -75,7 +77,9 @@ class AIRouter:
                 elapsed = int((time.monotonic() - start) * 1000)
                 logger.info(f"[Router] Tamamlandı: task='{task_type}', ms={elapsed}")
 
+
 _router: AIRouter | None = None
+
 
 def get_router() -> AIRouter:
     global _router

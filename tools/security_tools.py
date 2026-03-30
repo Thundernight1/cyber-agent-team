@@ -169,8 +169,7 @@ class NmapTool(BaseTool):
         for block in host_blocks:
             ip_match = re.search(r'addr="([^"]+)"', block)
             ports_found = re.findall(
-                r'<port protocol="([^"]+)" portid="(\d+)".*?'
-                r'state="([^"]+)".*?(?:name="([^"]*)")?',
+                r'<port protocol="([^"]+)" portid="(\d+)".*?' r'state="([^"]+)".*?(?:name="([^"]*)")?',
                 block,
                 re.DOTALL,
             )
@@ -194,9 +193,7 @@ class NucleiTool(BaseTool):
     """Nuclei - Template tabanlı zafiyet tarayıcı."""
 
     def __init__(self):
-        super().__init__(
-            "nuclei", "vulnerability_scanner", SECURITY_TOOLS["nuclei"]["path"]
-        )
+        super().__init__("nuclei", "vulnerability_scanner", SECURITY_TOOLS["nuclei"]["path"])
 
     async def run(
         self,
@@ -238,9 +235,7 @@ class NiktoTool(BaseTool):
     def __init__(self):
         super().__init__("nikto", "web_scanner", SECURITY_TOOLS["nikto"]["path"])
 
-    async def run(
-        self, target: str, port: int = 80, ssl: bool = False, **kwargs
-    ) -> ToolResult:
+    async def run(self, target: str, port: int = 80, ssl: bool = False, **kwargs) -> ToolResult:
         cmd = [self.executable, "-h", target, "-p", str(port), "-Format", "json"]
         if ssl:
             cmd.append("-ssl")
@@ -253,9 +248,7 @@ class SQLMapTool(BaseTool):
     def __init__(self):
         super().__init__("sqlmap", "sql_injection", SECURITY_TOOLS["sqlmap"]["path"])
 
-    async def run(
-        self, url: str, method: str = "GET", data: str = None, level: int = 1, **kwargs
-    ) -> ToolResult:
+    async def run(self, url: str, method: str = "GET", data: str = None, level: int = 1, **kwargs) -> ToolResult:
         cmd = [
             self.executable,
             "-u",
@@ -341,13 +334,9 @@ class MetasploitTool(BaseTool):
     """Metasploit Framework - bilgi toplama ve exploit modülleri."""
 
     def __init__(self):
-        super().__init__(
-            "metasploit", "exploitation", SECURITY_TOOLS["metasploit"]["path"]
-        )
+        super().__init__("metasploit", "exploitation", SECURITY_TOOLS["metasploit"]["path"])
 
-    async def run(
-        self, resource_script: str = None, command: str = None, **kwargs
-    ) -> ToolResult:
+    async def run(self, resource_script: str = None, command: str = None, **kwargs) -> ToolResult:
         if resource_script:
             cmd = [self.executable, "-q", "-r", resource_script]
         elif command:
@@ -374,9 +363,7 @@ class ShodanTool(BaseTool):
         self.api_key = api_key or os.getenv("SHODAN_API_KEY", "")
         super().__init__("shodan", "osint", SECURITY_TOOLS["shodan"]["path"])
 
-    async def run(
-        self, target: str = None, query: str = None, search_type: str = "host", **kwargs
-    ) -> ToolResult:
+    async def run(self, target: str = None, query: str = None, search_type: str = "host", **kwargs) -> ToolResult:
         """
         Shodan free tier sınırlamaları:
         - host: İP hakkında bilgi (myip, host lookup)
@@ -425,9 +412,7 @@ class ShodanTool(BaseTool):
                     }
                 )
         except Exception as e:
-            tools_tried.append(
-                {"tool": "nslookup", "status": "failed", "error": str(e)}
-            )
+            tools_tried.append({"tool": "nslookup", "status": "failed", "error": str(e)})
 
         # 2. whois (OSINT)
         if shutil.which("whois"):
@@ -442,9 +427,7 @@ class ShodanTool(BaseTool):
                         }
                     )
             except Exception as e:
-                tools_tried.append(
-                    {"tool": "whois", "status": "failed", "error": str(e)}
-                )
+                tools_tried.append({"tool": "whois", "status": "failed", "error": str(e)})
 
         # 3. curl (HTTP headers, SSL cert info)
         try:
@@ -536,9 +519,7 @@ class WiFiPineappleTool(BaseTool):
         super().__init__("wifi-pineapple", "wireless")
         self.is_available = True  # API tabanlı
 
-    async def run(
-        self, action: str = "recon", duration: int = 30, **kwargs
-    ) -> ToolResult:
+    async def run(self, action: str = "recon", duration: int = 30, **kwargs) -> ToolResult:
         import aiohttp
 
         base_url = f"http://{self.host}/api"
@@ -590,9 +571,7 @@ class FlipperZeroTool(BaseTool):
         super().__init__("flipper-zero", "physical")
         self.is_available = Path(port).exists() if port else False
 
-    async def run(
-        self, action: str = "info", subghz_freq: int = None, **kwargs
-    ) -> ToolResult:
+    async def run(self, action: str = "info", subghz_freq: int = None, **kwargs) -> ToolResult:
         executable = os.getenv("FLIPPER_PATH", "flipper")
         flipper_commands = {
             "info": [executable, "info"],
@@ -647,9 +626,7 @@ class SharkTapTool(BaseTool):
     def __init__(self, interface: str = "eth1"):
         self.interface = interface
         super().__init__("sharktap", "passive_network")
-        self.is_available = (
-            shutil.which(os.getenv("TCPDUMP_PATH", "tcpdump")) is not None
-        )
+        self.is_available = shutil.which(os.getenv("TCPDUMP_PATH", "tcpdump")) is not None
 
     async def run(
         self,
@@ -682,10 +659,7 @@ class MacWiFiScanner(BaseTool):
     def __init__(self):
         super().__init__("wifi-scanner", "wireless", self.AIRPORT_PATH)
         # macOS'ta airport her zaman var
-        self.is_available = (
-            Path(self.AIRPORT_PATH).exists()
-            or shutil.which("system_profiler") is not None
-        )
+        self.is_available = Path(self.AIRPORT_PATH).exists() or shutil.which("system_profiler") is not None
 
     async def run(self, action: str = "scan", **kwargs) -> ToolResult:
         """
@@ -711,11 +685,7 @@ class MacWiFiScanner(BaseTool):
 
         # Risk analizi
         networks = results.get("nearby_networks", [])
-        open_networks = [
-            n
-            for n in networks
-            if n.get("security", "").upper() in ("OPEN", "NONE", "--", "")
-        ]
+        open_networks = [n for n in networks if n.get("security", "").upper() in ("OPEN", "NONE", "--", "")]
         wep_networks = [n for n in networks if "WEP" in n.get("security", "").upper()]
 
         results["risk_assessment"] = {
@@ -724,9 +694,7 @@ class MacWiFiScanner(BaseTool):
             "wep_networks": len(wep_networks),
             "open_ssids": [n.get("ssid", "Hidden") for n in open_networks],
             "wep_ssids": [n.get("ssid", "Hidden") for n in wep_networks],
-            "risk_level": (
-                "CRITICAL" if open_networks else ("HIGH" if wep_networks else "LOW")
-            ),
+            "risk_level": ("CRITICAL" if open_networks else ("HIGH" if wep_networks else "LOW")),
         }
 
         return ToolResult(
@@ -772,17 +740,13 @@ class MacWiFiScanner(BaseTool):
             sp_data = data.get("SPAirPortDataType", [{}])
             if sp_data:
                 for iface in sp_data:
-                    for net_info in iface.get(
-                        "spairport_airport_other_local_wireless_networks", []
-                    ):
+                    for net_info in iface.get("spairport_airport_other_local_wireless_networks", []):
                         networks.append(
                             {
                                 "ssid": net_info.get("_name", "Unknown"),
                                 "bssid": net_info.get("spairport_network_bssid", ""),
                                 "rssi": net_info.get("spairport_signal_noise", ""),
-                                "channel": net_info.get(
-                                    "spairport_network_channel", ""
-                                ),
+                                "channel": net_info.get("spairport_network_channel", ""),
                                 "security": net_info.get("spairport_security_mode", ""),
                             }
                         )
@@ -832,9 +796,7 @@ class MacWiFiScanner(BaseTool):
                             "bssid": parts[1] if len(parts) > 1 else "",
                             "rssi": parts[2] if len(parts) > 2 else "",
                             "channel": parts[3] if len(parts) > 3 else "",
-                            "security": (
-                                " ".join(parts[6:]) if len(parts) > 6 else "Unknown"
-                            ),
+                            "security": (" ".join(parts[6:]) if len(parts) > 6 else "Unknown"),
                         }
                     )
         return networks
@@ -874,9 +836,7 @@ class MacWiFiScanner(BaseTool):
             import re
 
             for line in stdout.decode().split("\n"):
-                match = re.match(
-                    r"(\S+)\s+\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([\da-fA-F:]+)", line
-                )
+                match = re.match(r"(\S+)\s+\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([\da-fA-F:]+)", line)
                 if match:
                     devices.append(
                         {
@@ -975,9 +935,7 @@ class LocalNetworkScanner(BaseTool):
                     current_iface = iface_match.group(1)
                 inet_match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", line)
                 if inet_match and current_iface:
-                    interfaces.append(
-                        {"interface": current_iface, "ip": inet_match.group(1)}
-                    )
+                    interfaces.append({"interface": current_iface, "ip": inet_match.group(1)})
         except Exception:
             pass
 
@@ -1048,9 +1006,7 @@ class ToolFactory:
             "yes",
         }
         enabled_list_raw = os.getenv("PHYSICAL_TOOLS", "")
-        enabled_list = {
-            name.strip() for name in enabled_list_raw.split(",") if name.strip()
-        }
+        enabled_list = {name.strip() for name in enabled_list_raw.split(",") if name.strip()}
         if enabled_all:
             return
         for name, tool in cls._tools.items():
@@ -1071,7 +1027,4 @@ class ToolFactory:
 
     @classmethod
     def status_report(cls) -> List[Dict]:
-        return [
-            {"name": name, "category": tool.category, "available": tool.is_available}
-            for name, tool in cls._tools.items()
-        ]
+        return [{"name": name, "category": tool.category, "available": tool.is_available} for name, tool in cls._tools.items()]

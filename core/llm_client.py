@@ -11,8 +11,7 @@ from typing import Dict, List, Optional
 
 import aiohttp
 
-from config.settings import (OLLAMA_API_KEY, OLLAMA_CLOUD_BASE_URL,
-                             OLLAMA_LOCAL_BASE_URL)
+from config.settings import OLLAMA_API_KEY, OLLAMA_CLOUD_BASE_URL, OLLAMA_LOCAL_BASE_URL
 
 logger = logging.getLogger("cyber-agent.llm")
 
@@ -117,9 +116,7 @@ class OllamaClient:
         }
 
         if system_prompt:
-            payload["messages"] = [
-                {"role": "system", "content": system_prompt}
-            ] + messages
+            payload["messages"] = [{"role": "system", "content": system_prompt}] + messages
 
         if format:
             payload["format"] = format
@@ -136,14 +133,10 @@ class OllamaClient:
                     if base_url == OLLAMA_CLOUD_BASE_URL:
                         if resp.status in {401, 403}:
                             self._cloud_disabled = True
-                            logger.warning(
-                                "Cloud auth failed; switching to local for this session."
-                            )
+                            logger.warning("Cloud auth failed; switching to local for this session.")
                         else:
                             logger.warning("Cloud failed; switching to local fallback.")
-                        return await self._fallback_local(
-                            model, messages, system_prompt, temperature
-                        )
+                        return await self._fallback_local(model, messages, system_prompt, temperature)
                     raise ConnectionError(f"Ollama API error: {resp.status}")
 
                 if stream:
@@ -163,9 +156,7 @@ class OllamaClient:
             logger.error(f"Connection error: {e}")
             if base_url == OLLAMA_CLOUD_BASE_URL:
                 self._cloud_disabled = True
-                return await self._fallback_local(
-                    model, messages, system_prompt, temperature
-                )
+                return await self._fallback_local(model, messages, system_prompt, temperature)
             raise
 
     # ---------------------------------------------------------
@@ -202,9 +193,7 @@ class OllamaClient:
 
         return await router.route(task_type=task_type, call_fn=_call)
 
-    async def _fallback_local(
-        self, model, messages, system_prompt, temperature
-    ) -> LLMResponse:
+    async def _fallback_local(self, model, messages, system_prompt, temperature) -> LLMResponse:
         """Fallback to local Ollama if cloud fails."""
         local_model = model.replace(":cloud", "").replace("-cloud", "")
         logger.info(f"Local fallback: {local_model}")
@@ -217,9 +206,7 @@ class OllamaClient:
             "options": {"temperature": temperature},
         }
         if system_prompt:
-            payload["messages"] = [
-                {"role": "system", "content": system_prompt}
-            ] + messages
+            payload["messages"] = [{"role": "system", "content": system_prompt}] + messages
 
         url = f"{OLLAMA_LOCAL_BASE_URL}/chat"
         try:
@@ -323,9 +310,7 @@ class OllamaClient:
 
         # Cloud kontrol
         try:
-            headers = (
-                {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-            )
+            headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
             async with session.get(
                 f"{OLLAMA_CLOUD_BASE_URL}/tags",
                 headers=headers,
