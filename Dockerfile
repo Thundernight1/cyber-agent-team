@@ -26,16 +26,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user early for better permission handling
 RUN useradd -m -u 1000 appuser
 
-# Copy Python dependencies from builder
-COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
+# Copy Python dependencies from builder (root-owned, read+exec for all)
+COPY --from=builder --chown=root:root --chmod=755 /root/.local /home/appuser/.local
 
 # Set environment variables for Python and app
 ENV PATH=/home/appuser/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Copy application with proper ownership
-COPY --chown=appuser:appuser . .
+# Copy application code (root-owned, read+exec for appuser)
+COPY --chown=root:root --chmod=755 . .
 
 USER appuser
 

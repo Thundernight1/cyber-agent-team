@@ -2,6 +2,7 @@
 Tool Wrapper - Subprocess Execution Handler
 Enforces the "No-Fake" mandate by ensuring all agent findings are backed by real tool execution logs.
 """
+from __future__ import annotations
 
 import asyncio
 import json
@@ -9,7 +10,6 @@ import logging
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Union
 
 logger = logging.getLogger("cyber-agent.tool_wrapper")
 
@@ -25,10 +25,10 @@ class ToolResult:
     stderr: str
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     duration_ms: int = 0
-    parsed_output: Optional[Union[Dict, List]] = None
-    error: Optional[str] = None
+    parsed_output: dict[str, object] | list[object] | None = None
+    error: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, object]:
         return {
             "tool_name": self.tool_name,
             "command": self.command,
@@ -57,10 +57,10 @@ class ToolWrapper:
     async def run(
         self,
         tool_name: str,
-        command: List[str],
+        command: list[str],
         timeout: int = 300,
         parse_json: bool = False,
-        env: Dict = None,
+        env: dict[str, str] | None = None,
     ) -> ToolResult:
         """
         Run a command and return the result.

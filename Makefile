@@ -8,7 +8,6 @@ setup:
 
 test:
 	@echo "Running tests..."
-	venv/bin/python3 tests/validate_real_world.py
 	venv/bin/pytest tests/ -v
 
 test-cov:

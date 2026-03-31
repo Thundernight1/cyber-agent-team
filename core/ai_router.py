@@ -10,7 +10,15 @@ import asyncio
 import logging
 import os
 import time
-from typing import Any, Callable
+from typing import Protocol
+
+
+class AsyncCallFn(Protocol):
+    """Protocol for async callback functions passed to AIRouter.route()."""
+
+    async def __call__(self, *, api_key: str, model: str) -> object:
+                            ...
+
 
 logger = logging.getLogger("cyber-agent.ai_router")
 
@@ -56,9 +64,9 @@ class AIRouter:
     async def route(
         self,
         task_type: str,
-        call_fn: Callable[..., Any],
+        call_fn: "AsyncCallFn",
         wait_time: float = 120.0,
-    ) -> Any:
+    ) -> object:
         _ = wait_time  # unused parameter
         model = get_model_for_task(task_type)
         logger.info(f"[Router] Sıraya alındı: task='{task_type}', model='{model}'")
@@ -69,7 +77,8 @@ class AIRouter:
             start = time.monotonic()
             try:
                 # Gerçekleştirilen çağrı
-                return await call_fn(api_key=self._api_key, model=model)
+                result: object = await call_fn(api_key=self._api_key, model=model)
+                return result
             except Exception as e:
                 logger.error(f"[Router] Çağrı hatası: {e}")
                 raise

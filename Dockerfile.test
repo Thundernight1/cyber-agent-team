@@ -33,14 +33,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN useradd -m -u 1000 appuser
 
-# Copy dependencies from builder
-COPY --from=test-builder --chown=appuser:appuser /root/.local /home/appuser/.local
+# Copy dependencies from builder (root-owned, read+exec for all)
+COPY --from=test-builder --chown=root:root --chmod=755 /root/.local /home/appuser/.local
 
 ENV PATH=/home/appuser/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-COPY --chown=appuser:appuser . .
+COPY --chown=root:root --chmod=755 . .
 
 USER appuser
 

@@ -2,12 +2,12 @@
 
 ## ✅ Yapılan İyileştirmeler
 
-### 1. **Shodan - Free Tier Optimizasyonu**
-- ✅ **Shodan CLI fallback**: Eğer `shodan` CLI yoksa, alternatif araçlar otomatik kullanılır
-- ✅ **Free tier desteği**: myip, dns, host lookup çalışır
-- 📌 Paid features (search, scan) sınırlı ama fallback'ler var
+### 1. **OSINT Fallback Chain**
+- ✅ **Otomatik fallback**: Alternatif OSINT araçları (whois, nslookup, curl) otomatik kullanılır
+- ✅ **Ücretsiz araçlar**: DNS, Whois, HTTP header analizi çalışır
+- 📌 Ek API entegrasyonları (Censys, SecurityTrails) planlanıyor
 
-### 2. **Yeni Ücretsiz OSINT Araçları Eklendi**
+### 2. **Ücretsiz OSINT Araçları**
 
 #### **WhoisTool** (Ücretsiz & Sınırsız)
 ```bash
@@ -22,8 +22,8 @@ nslookup -type=MX google.com # Mail servers
 nslookup -type=TXT google.com # TXT records
 ```
 
-#### **Shodan Fallback Chain**
-Shodan CLI yoksa otomatik:
+#### **OSINT Fallback Chain**
+Araç yoksa otomatik:
 1. `nslookup` - DNS resolve
 2. `whois` - Domain/IP info
 3. `curl` - HTTP headers & SSL cert
@@ -36,7 +36,6 @@ Shodan CLI yoksa otomatik:
 |------|-------|------|-----------|
 | **Whois** | ✅ Aktif | Ücretsiz | Yok |
 | **DNS (nslookup)** | ✅ Aktif | Ücretsiz | Yok |
-| **Shodan CLI** | ⚠️ Fallback | Free+Paid | API key gerekli |
 | **Nmap** | ✅ Hazır | Ücretsiz | - |
 | **Curl** | ✅ Hazır | Ücretsiz | - |
 
@@ -68,10 +67,6 @@ result = await dns.run(target='example.com', record_type='A')
 # Whois Lookup
 whois = tools.get('whois')
 result = await whois.run(target='example.com')
-
-# Shodan (Fallback otomatik)
-shodan = tools.get('shodan')
-result = await shodan.run(target='example.com', search_type='host')
 ```
 
 ---
@@ -83,7 +78,6 @@ result = await shodan.run(target='example.com', search_type='host')
 - [ ] **SecurityTrails** (Free tier, DNS history)
 - [ ] **VirusTotal** (Free API, file/URL analysis)
 - [ ] **Abuse.ch** (URLhaus, malware intel)
-- [ ] **Shodan MCP** (Eğer MCP server ayarlanmışsa)
 
 ### CLI Araçlar
 - [ ] `dig` (Advanced DNS queries)
@@ -104,7 +98,6 @@ python3 -c "from tools.security_tools import ToolFactory; ToolFactory.initialize
 ```
 ✅ Whois tool: True
 ✅ DNS tool: True
-✅ Shodan tool (CLI): False (fallback aktif)
 
 🎯 OSINT Recon Test: google.com
 📡 DNS Query Result: Success
@@ -115,9 +108,9 @@ python3 -c "from tools.security_tools import ToolFactory; ToolFactory.initialize
 
 ## 💡 Not
 
-Shodan'ın paid planı gereklidir ama:
-1. **Free tier** myip, dns, host lookup ile çalışır
-2. **Fallback chain** her zaman çalışır (whois + nslookup + curl)
-3. **MCP Connector** varsa daha yetkili erişim olur
+OSINT araçları tamamen ücretsiz çalışır:
+1. **Whois** — domain/IP bilgisi
+2. **DNS (nslookup)** — A, MX, NS, TXT kayıtları
+3. **Fallback chain** — her zaman çalışır (whois + nslookup + curl)
 
 Proje **tamamen ücretsiz OSINT araçlarla çalışabilir**! 🎯

@@ -1,69 +1,105 @@
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportAny=false
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template
+from flask_wtf.csrf import CSRFProtect  # type: ignore[import-untyped]
 
 # Load environment variables
-load_dotenv()
+_ = load_dotenv()
 
 app = Flask(__name__)
 # Use environment variable for secret key, fallback to a default only in dev
 app.secret_key = os.getenv("DASHBOARD_SECRET_KEY", "dev-secret-key-change-me")
+csrf = CSRFProtect(app)
 
-# Path to the reports directory
-REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports")
+# Path to the reports directory — resolved to absolute canonical path
+REPORTS_DIR = str(Path(__file__).resolve().parent.parent / "reports")
 
 
-@app.route("/")
+def _safe_report_path(filename: str) -> str | None:
+    """Validate and return a safe absolute path within REPORTS_DIR.
+
+    Returns None if the resolved path escapes the reports directory.
+    """
+    if not filename or ".." in filename or "/" in filename or os.path.sep in filename:
+        return None
+
+    # Resolve to canonical absolute path and verify it stays inside REPORTS_DIR
+    candidate = os.path.realpath(os.path.join(REPORTS_DIR, filename))
+    if not candidate.startswith(os.path.realpath(REPORTS_DIR) + os.sep):
+        return None
+
+    if not candidate.endswith(".json"):
+        return None
+
+    return candidate
+
+
+def _load_json(filepath: str) -> dict[str, object] | None:
+    """Load and return parsed JSON from a file, or None on error."""
+    with open(filepath, "r") as f:
+        try:
+            result: object = json.load(f)
+            if isinstance(result, dict):
+                return result  # type: ignore[return-value]
+            return None
+        except json.JSONDecodeError:
+            return None
+
+
+@app.route("/", methods=["GET"])
 def index():
+    """Serve the dashboard index page."""
     return render_template("index.html")
 
 
-@app.route("/api/reports")
+@app.route("/api/reports", methods=["GET"])
 def get_reports():
-    reports = []
+    """Return a JSON list of report summaries."""
+    reports: list[dict[str, str]] = []
     if os.path.exists(REPORTS_DIR):
-        for filename in os.listdir(REPORTS_DIR):
-            if filename.endswith(".json"):
-                with open(os.path.join(REPORTS_DIR, filename), "r") as f:
-                    try:
-                        data = json.load(f)
-                        reports.append(
-                            {
-                                "id": filename,
-                                "timestamp": data.get(
-                                    "timestamp", datetime.now().isoformat()
-                                ),
-                                "type": data.get("type", "unknown"),
-                                "summary": data.get("summary", "No summary available"),
-                            }
-                        )
-                    except json.JSONDecodeError:
-                        continue
+        for entry in os.listdir(REPORTS_DIR):
+            safe_path = _safe_report_path(entry)
+            if safe_path is None:
+                continue
+            data = _load_json(safe_path)
+            if data is None:
+                continue
+            reports.append(
+                {
+                    "id": entry,
+                    "timestamp": str(data.get(
+                        "timestamp", datetime.now().isoformat())
+                    ),
+                    "type": str(data.get("type", "unknown")),
+                    "summary": str(data.get("summary", "No summary available")),
+                }
+            )
     # Sort reports by timestamp descending
     reports.sort(key=lambda x: x["timestamp"], reverse=True)
     return jsonify(reports)
 
 
-@app.route("/api/report/<filename>")
-def get_report_detail(filename):
-    # Security check: ensure filename is just a filename and not a path
-    if ".." in filename or os.path.sep in filename:
+@app.route("/api/report/<filename>", methods=["GET"])
+def get_report_detail(filename: str):
+    """Return the full JSON content of a single report."""
+    safe_path = _safe_report_path(filename)
+    if safe_path is None:
         return jsonify({"error": "Invalid filename"}), 400
 
-    filepath = os.path.join(REPORTS_DIR, filename)
-    if os.path.exists(filepath) and filename.endswith(".json"):
-        with open(filepath, "r") as f:
-            try:
-                data = json.load(f)
-                return jsonify(data)
-            except json.JSONDecodeError:
-                return jsonify({"error": "Invalid report format"}), 400
+    if os.path.exists(safe_path):
+        data = _load_json(safe_path)
+        if data is not None:
+            return jsonify(data)
+        return jsonify({"error": "Invalid report format"}), 400
     return jsonify({"error": "Report not found"}), 404
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("DASHBOARD_PORT", 5001))
-    app.run(debug=True, port=port)
+    port = int(os.getenv("DASHBOARD_PORT", "5001"))
+    debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    app.run(debug=debug_mode, port=port)

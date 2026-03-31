@@ -1,6 +1,6 @@
 """
 Güvenlik Araç Entegrasyonları
-Yazılım Araçları: Nmap, Nikto, SQLMap, Nuclei, OWASP ZAP, Trivy, Metasploit, Shodan, Burp Suite
+Yazılım Araçları: Nmap, Nikto, SQLMap, Nuclei, OWASP ZAP, Trivy, Metasploit, Burp Suite
 Fiziksel Araçlar: Wi-Fi Pineapple, Flipper Zero, SharkTap
 """
 
@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+
 
 from config.settings import SECURITY_TOOLS
 
@@ -25,13 +25,13 @@ class ToolResult:
     tool_name: str
     command: str
     status: str  # success | error | timeout
-    output: Any = None
+    output: object = None
     raw_output: str = ""
     duration_ms: int = 0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    error: Optional[str] = None
+    error: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, object]:
         return {
             "tool_name": self.tool_name,
             "command": self.command,
@@ -47,7 +47,7 @@ class ToolResult:
 class BaseTool(ABC):
     """Tüm araçların temel sınıfı."""
 
-    def __init__(self, name: str, category: str, executable: str = None):
+    def __init__(self, name: str, category: str, executable: str | None = None):
         self.name = name
         self.category = category
         self.executable = executable or name
@@ -60,7 +60,7 @@ class BaseTool(ABC):
     async def run(self, **kwargs) -> ToolResult:
         pass
 
-    async def _execute_command(self, cmd: List[str], timeout: int = 300) -> ToolResult:
+    async def _execute_command(self, cmd: list[str], timeout: int = 300) -> ToolResult:
         """Shell komutu güvenli şekilde çalıştır (execFile tarzı, shell=False)."""
         start = datetime.now()
         command_str = " ".join(cmd)
@@ -125,9 +125,9 @@ class NmapTool(BaseTool):
         self,
         target: str,
         scan_type: str = "quick",
-        ports: str = None,
-        scripts: str = None,
-        extra_args: List[str] = None,
+        ports: str | None = None,
+        scripts: str | None = None,
+        extra_args: list[str] | None = None,
     ) -> ToolResult:
         cmd = [self.executable]
 
@@ -160,7 +160,7 @@ class NmapTool(BaseTool):
 
         return result
 
-    def _parse_nmap_xml(self, xml_data: str) -> Dict:
+    def _parse_nmap_xml(self, xml_data: str) -> dict[str, object]:
         """Basit Nmap XML parser."""
         import re
 
@@ -198,10 +198,10 @@ class NucleiTool(BaseTool):
     async def run(
         self,
         target: str,
-        templates: str = None,
-        severity: str = None,
-        tags: str = None,
-        extra_args: List[str] = None,
+        templates: str | None = None,
+        severity: str | None = None,
+        tags: str | None = None,
+        extra_args: list[str] | None = None,
     ) -> ToolResult:
         cmd = [self.executable, "-u", target, "-json", "-silent"]
 
@@ -248,7 +248,7 @@ class SQLMapTool(BaseTool):
     def __init__(self):
         super().__init__("sqlmap", "sql_injection", SECURITY_TOOLS["sqlmap"]["path"])
 
-    async def run(self, url: str, method: str = "GET", data: str = None, level: int = 1, **kwargs) -> ToolResult:
+    async def run(self, url: str, method: str = "GET", data: str | None = None, level: int = 1, **kwargs: object) -> ToolResult:
         cmd = [
             self.executable,
             "-u",
@@ -336,7 +336,7 @@ class MetasploitTool(BaseTool):
     def __init__(self):
         super().__init__("metasploit", "exploitation", SECURITY_TOOLS["metasploit"]["path"])
 
-    async def run(self, resource_script: str = None, command: str = None, **kwargs) -> ToolResult:
+    async def run(self, resource_script: str | None = None, command: str | None = None, **kwargs: object) -> ToolResult:
         if resource_script:
             cmd = [self.executable, "-q", "-r", resource_script]
         elif command:
@@ -354,103 +354,6 @@ class MetasploitTool(BaseTool):
 # ============================================================
 # OSINT / RECON
 # ============================================================
-
-
-class ShodanTool(BaseTool):
-    """Shodan - İnternet genelinde cihaz/servis keşfi (Free Tier + Alternatifler)."""
-
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or os.getenv("SHODAN_API_KEY", "")
-        super().__init__("shodan", "osint", SECURITY_TOOLS["shodan"]["path"])
-
-    async def run(self, target: str = None, query: str = None, search_type: str = "host", **kwargs) -> ToolResult:
-        """
-        Shodan free tier sınırlamaları:
-        - host: İP hakkında bilgi (myip, host lookup)
-        - search: 1 sayfa (100 sonuç)
-        - dns, malware, ssl desteği sınırlı
-
-        Fallback: Alternatif OSINT araçlarını (whois, nslookup, curl) kullan
-        """
-        # CLI çalışmazsa, API fallback'i yap
-        if search_type == "host" and target:
-            # Önce CLI dene
-            if self.is_available:
-                cmd = [self.executable, "host", target]
-                return await self._execute_command(cmd, timeout=120)
-            # CLI yoksa, whois + nslookup kullan
-            return await self._osint_fallback(target)
-        elif search_type == "myip":
-            # Free: Kendi IP'ni göster
-            cmd = [self.executable, "myip"]
-            return await self._execute_command(cmd, timeout=30)
-        elif search_type == "dns" and target:
-            # nslookup ile DNS resolve
-            cmd = ["nslookup", target]
-            return await self._execute_command(cmd, timeout=30)
-        else:
-            return ToolResult(
-                tool_name=self.name,
-                command="",
-                status="error",
-                error="target veya search_type gerekli",
-            )
-
-    async def _osint_fallback(self, target: str) -> ToolResult:
-        """Shodan CLI yoksa alternatif araçlar kullan (whois, nslookup, curl)."""
-        tools_tried = []
-
-        # 1. nslookup (DNS)
-        try:
-            result = await self._execute_command(["nslookup", target], timeout=30)
-            if result.status == "success":
-                tools_tried.append(
-                    {
-                        "tool": "nslookup",
-                        "status": "success",
-                        "output": result.raw_output[:500],
-                    }
-                )
-        except Exception as e:
-            tools_tried.append({"tool": "nslookup", "status": "failed", "error": str(e)})
-
-        # 2. whois (OSINT)
-        if shutil.which("whois"):
-            try:
-                result = await self._execute_command(["whois", target], timeout=30)
-                if result.status == "success":
-                    tools_tried.append(
-                        {
-                            "tool": "whois",
-                            "status": "success",
-                            "output": result.raw_output[:500],
-                        }
-                    )
-            except Exception as e:
-                tools_tried.append({"tool": "whois", "status": "failed", "error": str(e)})
-
-        # 3. curl (HTTP headers, SSL cert info)
-        try:
-            cmd = ["curl", "-v", f"http://{target}", "-m", "10"]
-            result = await self._execute_command(cmd, timeout=15)
-            if result.status in ["success", "error"]:
-                tools_tried.append(
-                    {
-                        "tool": "curl",
-                        "status": "success",
-                        "output": result.raw_output[:500],
-                    }
-                )
-        except Exception as e:
-            tools_tried.append({"tool": "curl", "status": "failed", "error": str(e)})
-
-        return ToolResult(
-            tool_name="shodan_fallback",
-            command=f"osint_recon({target})",
-            status="success",
-            output={"osint_tools": tools_tried, "target": target},
-            raw_output=json.dumps(tools_tried),
-        )
 
 
 class WhoisTool(BaseTool):
@@ -513,7 +416,7 @@ class DNSToolchain(BaseTool):
 class WiFiPineappleTool(BaseTool):
     """Wi-Fi Pineapple Tactical VII entegrasyonu (REST API)."""
 
-    def __init__(self, host: str = "172.16.42.1", api_key: str = None):
+    def __init__(self, host: str = "172.16.42.1", api_key: str | None = None):
         self.host = host
         self.pineapple_api_key = api_key
         super().__init__("wifi-pineapple", "wireless")
@@ -631,8 +534,8 @@ class SharkTapTool(BaseTool):
     async def run(
         self,
         duration: int = 30,
-        filter_expr: str = None,
-        output_file: str = None,
+        filter_expr: str | None = None,
+        output_file: str | None = None,
         **kwargs,
     ) -> ToolResult:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -705,7 +608,7 @@ class MacWiFiScanner(BaseTool):
             duration_ms=duration,
         )
 
-    async def _airport_scan(self) -> List[Dict]:
+    async def _airport_scan(self) -> list[dict[str, object]]:
         """airport -s ile çevredeki WiFi ağlarını tara."""
         networks = []
 
@@ -755,7 +658,7 @@ class MacWiFiScanner(BaseTool):
 
         return networks
 
-    def _parse_airport_output(self, output: str) -> List[Dict]:
+    def _parse_airport_output(self, output: str) -> list[dict[str, object]]:
         """airport -s çıktısını parse et."""
         import re
 
@@ -801,7 +704,7 @@ class MacWiFiScanner(BaseTool):
                     )
         return networks
 
-    async def _airport_info(self) -> Dict:
+    async def _airport_info(self) -> dict[str, str]:
         """Bağlı WiFi ağı hakkında bilgi al."""
         if Path(self.AIRPORT_PATH).exists():
             try:
@@ -822,7 +725,7 @@ class MacWiFiScanner(BaseTool):
                 pass
         return {}
 
-    async def _arp_scan(self) -> List[Dict]:
+    async def _arp_scan(self) -> list[dict[str, str]]:
         """ARP tablosundan yerel ağdaki cihazları keşfet."""
         devices = []
         try:
@@ -849,7 +752,7 @@ class MacWiFiScanner(BaseTool):
             logger.warning(f"ARP scan başarısız: {e}")
         return devices
 
-    async def _hardware_info(self) -> Dict:
+    async def _hardware_info(self) -> dict[str, str]:
         """WiFi donanım bilgisi al."""
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -885,7 +788,7 @@ class LocalNetworkScanner(BaseTool):
         super().__init__("network-scanner", "network_discovery", "arp")
         self.is_available = True  # arp her macOS'ta var
 
-    async def run(self, subnet: str = None, **kwargs) -> ToolResult:
+    async def run(self, subnet: str | None = None, **kwargs: object) -> ToolResult:
         start = datetime.now()
         devices = []
 
@@ -962,11 +865,11 @@ class LocalNetworkScanner(BaseTool):
 class ToolFactory:
     """Tüm araçları merkezi olarak yönetir."""
 
-    _tools: Dict[str, BaseTool] = {}
+    _tools: dict[str, BaseTool] = {}
     _physical_categories = {"wireless", "physical", "passive_network"}
 
     @classmethod
-    def initialize(cls, shodan_api_key: str = None, pineapple_host: str = None):
+    def initialize(cls, pineapple_host: str | None = None):
         pine_host = pineapple_host or os.getenv("PINEAPPLE_HOST") or "172.16.42.1"
         flipper_port = os.getenv("FLIPPER_PORT", "/dev/ttyACM0")
         cls._tools = {
@@ -981,8 +884,8 @@ class ToolFactory:
             "trivy": TrivyTool(),
             # Exploitation
             "metasploit": MetasploitTool(),
-            # OSINT - Shodan + Free alternatives
-            "shodan": ShodanTool(api_key=shodan_api_key),
+            # OSINT - Free alternatives
+
             "whois": WhoisTool(),
             "dns": DNSToolchain(),
             # Wireless / macOS native
@@ -1014,17 +917,17 @@ class ToolFactory:
                 tool.is_available = False
 
     @classmethod
-    def get(cls, name: str) -> Optional[BaseTool]:
+    def get(cls, name: str) -> BaseTool | None:
         return cls._tools.get(name)
 
     @classmethod
-    def get_available(cls) -> Dict[str, BaseTool]:
+    def get_available(cls) -> dict[str, BaseTool]:
         return {k: v for k, v in cls._tools.items() if v.is_available}
 
     @classmethod
-    def get_by_category(cls, category: str) -> List[BaseTool]:
+    def get_by_category(cls, category: str) -> list[BaseTool]:
         return [t for t in cls._tools.values() if t.category == category]
 
     @classmethod
-    def status_report(cls) -> List[Dict]:
+    def status_report(cls) -> list[dict[str, object]]:
         return [{"name": name, "category": tool.category, "available": tool.is_available} for name, tool in cls._tools.items()]

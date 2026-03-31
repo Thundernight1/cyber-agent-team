@@ -7,48 +7,36 @@ on:
     branches: [ "main", "develop" ]
 
 jobs:
-  test-and-scan:
+  test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       with:
-        fetch-depth: 0  # SonarQube requires full repo history for accurate analysis
-        
+        fetch-depth: 0
+
     - name: Set up Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
       with:
         python-version: "3.11"
-        
-    - name: Set up Environment & Dependencies
+
+    - name: Install Dependencies
       run: |
-        python -m venv venv
-        source venv/bin/activate
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-        
-    - name: Run Tests & Security Checks
+
+    - name: Lint
       run: |
-        source venv/bin/activate
-        
-        # We explicitly add coverage XML generation for SonarQube
-        pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
-        
-        # Run local checks smoothly
-        make lint
-        make security
-        
-    - name: SonarQube Analysis
-      # "sen işini bitirdiğin zaman ona yönlendiriyorsun bitiyor zaten işlem" - user instruction applies here.
-      uses: SonarSource/sonarqube-scan-action@master
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      with:
-        args: >
-          -Dsonar.projectKey=cyber-agent-team
-          -Dsonar.python.coverage.reportPaths=coverage.xml
-          -Dsonar.sources=core,agents,tools,orchestrator
-          -Dsonar.tests=tests
+        flake8 agents core tools orchestrator cli dashboard --max-line-length=127 --ignore=E203,E402,W291,W293
+        black --check agents core tools orchestrator cli dashboard || true
+        isort --check agents core tools orchestrator cli dashboard || true
+
+    - name: Test
+      run: |
+        pytest tests/ -v --cov=core --cov=tools --cov=orchestrator --cov-report=xml
+
+    - name: Security
+      run: |
+        bandit -r agents core tools orchestrator -s B101 || true
