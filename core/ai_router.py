@@ -16,7 +16,8 @@ from typing import Protocol
 class AsyncCallFn(Protocol):
     """Protocol for async callback functions passed to AIRouter.route()."""
 
-    async def __call__(self, *, api_key: str, model: str) -> object: ...
+    async def __call__(self, *, api_key: str, model: str) -> object:
+            ...
 
 
 logger = logging.getLogger("cyber-agent.ai_router")
