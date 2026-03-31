@@ -107,12 +107,12 @@ SUPPORT LAYER (Infrastructure)
 - nikto - Web server scanner
 - trivy - Container security
 - zap - OWASP ZAP integration
-- shodan - Internet device discovery
+
 
 ### OSINT
 - Whois lookups
 - DNS enumeration (A, MX, NS, TXT records)
-- Shodan fallback (free tier support + whois/nslookup/curl chain)
+- OSINT fallback chain (whois/nslookup/curl)
 
 ---
 
@@ -314,7 +314,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 🎯 Roadmap
 
-- [ ] Shodan API integration (paid tier support)
+
 - [ ] Nuclei template automation
 - [ ] Advanced exploitation chains
 - [ ] Machine learning vulnerability prediction

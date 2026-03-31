@@ -5,7 +5,7 @@ Ollama Cloud + Yerel Model Entegrasyonu
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+
 
 # ============================================================
 # OLLAMA CLOUD KONFİGÜRASYONU
@@ -17,15 +17,6 @@ OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
 # Varsayılan olarak cloud kullan, yerel fallback
 USE_CLOUD = True
 
-# ============================================================
-# SHODAN KONFİGÜRASYONU
-# ============================================================
-# OSS (ücretsiz) plan: myip, dns lookup, host count destekler
-# Membership+ plan: host lookup, search, scan gerektirir
-# Gerçek erişim için: https://account.shodan.io
-SHODAN_API_KEY = os.getenv("SHODAN_API_KEY", "")
-SHODAN_USE_MCP = True  # MCP connector varsa önce onu kullan (daha yetkili)
-SHODAN_ENABLED = True
 
 # ============================================================
 # MODEL ATAMALARI - Her ajana özel model
@@ -98,11 +89,7 @@ SECURITY_TOOLS = {
         "enabled": True,
         "category": "exploitation",
     },
-    "shodan": {
-        "path": _tool_path("SHODAN_PATH", "shodan"),
-        "enabled": True,
-        "category": "osint",
-    },
+
     "burpsuite": {
         "path": _tool_path("BURPSUITE_PATH", "burpsuite"),
         "enabled": True,
@@ -121,7 +108,7 @@ class AgentProfile:
     layer: str  # operator | analysis | decision | support
     model: str
     description: str
-    tools: list = field(default_factory=list)
+    tools: list[str] = field(default_factory=list)
     system_prompt: str = ""
 
 
@@ -280,9 +267,9 @@ REPORT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports")
 # ============================================================
 # CONFIG VALIDATION
 # ============================================================
-def validate_config():
+def validate_config() -> list[str]:
     """Validate critical environment variables and paths."""
-    errors = []
+    errors: list[str] = []
 
     # Check Ollama
     if not OLLAMA_API_KEY and USE_CLOUD:
@@ -292,17 +279,17 @@ def validate_config():
             pass
 
     # Check Tool Paths if enabled
-    for name, tool in SECURITY_TOOLS.items():
+    for _name, tool in SECURITY_TOOLS.items():
         if tool["enabled"]:
             path = tool["path"]
             # Some tools are just commands, check if they exist in PATH
             import shutil
 
-            if not shutil.which(path) and not os.path.exists(path):
+            if isinstance(path, str) and not shutil.which(path) and not os.path.exists(path):
                 # Don't error immediately, just log warning via ToolFactory usually
                 pass
 
     return errors
 
 
-validate_config()
+_ = validate_config()

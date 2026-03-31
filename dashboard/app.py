@@ -1,3 +1,4 @@
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportAny=false
 import json
 import os
 from datetime import datetime
@@ -38,6 +39,18 @@ def _safe_report_path(filename: str) -> str | None:
     return candidate
 
 
+def _load_json(filepath: str) -> dict[str, object] | None:
+    """Load and return parsed JSON from a file, or None on error."""
+    with open(filepath, "r") as f:
+        try:
+            result: object = json.load(f)
+            if isinstance(result, dict):
+                return result  # type: ignore[return-value]
+            return None
+        except json.JSONDecodeError:
+            return None
+
+
 @app.route("/", methods=["GET"])
 def index():
     """Serve the dashboard index page."""
@@ -53,21 +66,19 @@ def get_reports():
             safe_path = _safe_report_path(entry)
             if safe_path is None:
                 continue
-            with open(safe_path, "r") as f:
-                try:
-                    data: dict[str, str] = json.load(f)
-                    reports.append(
-                        {
-                            "id": entry,
-                            "timestamp": data.get(
-                                "timestamp", datetime.now().isoformat()
-                            ),
-                            "type": data.get("type", "unknown"),
-                            "summary": data.get("summary", "No summary available"),
-                        }
-                    )
-                except json.JSONDecodeError:
-                    continue
+            data = _load_json(safe_path)
+            if data is None:
+                continue
+            reports.append(
+                {
+                    "id": entry,
+                    "timestamp": str(data.get(
+                        "timestamp", datetime.now().isoformat())
+                    ),
+                    "type": str(data.get("type", "unknown")),
+                    "summary": str(data.get("summary", "No summary available")),
+                }
+            )
     # Sort reports by timestamp descending
     reports.sort(key=lambda x: x["timestamp"], reverse=True)
     return jsonify(reports)
@@ -81,12 +92,10 @@ def get_report_detail(filename: str):
         return jsonify({"error": "Invalid filename"}), 400
 
     if os.path.exists(safe_path):
-        with open(safe_path, "r") as f:
-            try:
-                data: dict[str, str] = json.load(f)
-                return jsonify(data)
-            except json.JSONDecodeError:
-                return jsonify({"error": "Invalid report format"}), 400
+        data = _load_json(safe_path)
+        if data is not None:
+            return jsonify(data)
+        return jsonify({"error": "Invalid report format"}), 400
     return jsonify({"error": "Report not found"}), 404
 
 

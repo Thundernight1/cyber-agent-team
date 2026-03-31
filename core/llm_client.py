@@ -7,7 +7,7 @@ Anthropic-compatible API and native Ollama API support.
 import json
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+
 
 import aiohttp
 
@@ -20,10 +20,10 @@ logger = logging.getLogger("cyber-agent.llm")
 class LLMResponse:
     content: str
     model: str
-    total_duration: Optional[int] = None
-    eval_count: Optional[int] = None
+    total_duration: int | None = None
+    eval_count: int | None = None
     done: bool = True
-    raw: Optional[dict] = None
+    raw: dict[str, object] | None = None
 
 
 class OllamaClient:
@@ -34,12 +34,12 @@ class OllamaClient:
     - Routed calls: use AIRouter for task-aware model + key selection
     """
 
-    def __init__(self, api_key: str = None, prefer_cloud: bool = True):
+    def __init__(self, api_key: str | None = None, prefer_cloud: bool = True):
         self.api_key = api_key or OLLAMA_API_KEY
         self.prefer_cloud = prefer_cloud
         self._cloud_disabled = False
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._router = None  # Lazy-loaded AIRouter
+        self._session: aiohttp.ClientSession | None = None
+        self._router: object | None = None  # Lazy-loaded AIRouter
 
     def _get_router(self):
         """Lazy-load AIRouter singleton to avoid circular imports."""
@@ -49,7 +49,7 @@ class OllamaClient:
             self._router = get_router()
         return self._router
 
-    def _get_base_url(self, model: str) -> str:
+    def _get_base_url(self, model: str) -> str:  # noqa: C901
         """Return cloud or local base URL for the model."""
         if self._cloud_disabled:
             return OLLAMA_LOCAL_BASE_URL
@@ -59,7 +59,7 @@ class OllamaClient:
             return OLLAMA_CLOUD_BASE_URL
         return OLLAMA_LOCAL_BASE_URL
 
-    def _get_headers(self, model: str, api_key: str = None) -> Dict:
+    def _get_headers(self, model: str, api_key: str | None = None) -> dict[str, str]:
         """Build API headers. Uses provided api_key if given (from key pool)."""
         headers = {"Content-Type": "application/json"}
         key = api_key or self.api_key
@@ -83,12 +83,12 @@ class OllamaClient:
     async def chat(
         self,
         model: str,
-        messages: List[Dict[str, str]],
-        system_prompt: str = None,
+        messages: list[dict[str, str]],
+        system_prompt: str | None = None,
         temperature: float = 0.7,
         stream: bool = False,
-        format: str = None,
-        api_key: str = None,
+        format: str | None = None,
+        api_key: str | None = None,
     ) -> LLMResponse:
         """
         Send request to Ollama chat endpoint.
@@ -165,8 +165,8 @@ class OllamaClient:
     async def chat_routed(
         self,
         task_type: str,
-        messages: List[Dict[str, str]],
-        system_prompt: str = None,
+        messages: list[dict[str, str]],
+        system_prompt: str | None = None,
         temperature: float = 0.7,
     ) -> LLMResponse:
         """
@@ -263,7 +263,7 @@ class OllamaClient:
         self,
         model: str,
         prompt: str,
-        system: str = None,
+        system: str | None = None,
         temperature: float = 0.7,
     ) -> LLMResponse:
         """Basit text generation endpoint'i."""
@@ -293,7 +293,7 @@ class OllamaClient:
     # ---------------------------------------------------------
     # MODEL YÖNETİMİ
     # ---------------------------------------------------------
-    async def list_models(self, cloud: bool = True) -> List[Dict]:
+    async def list_models(self, cloud: bool = True) -> list[dict[str, object]]:
         """Mevcut modelleri listele."""
         session = await self._get_session()
         base = OLLAMA_CLOUD_BASE_URL if cloud else OLLAMA_LOCAL_BASE_URL
@@ -303,7 +303,7 @@ class OllamaClient:
             data = await resp.json()
             return data.get("models", [])
 
-    async def health_check(self) -> Dict[str, bool]:
+    async def health_check(self) -> dict[str, bool]:
         """Cloud ve local bağlantı durumunu kontrol et."""
         result = {"cloud": False, "local": False}
         session = await self._get_session()
@@ -332,13 +332,13 @@ class OllamaClient:
 
         return result
 
-    def router_status(self) -> Dict:
+    def router_status(self) -> dict[str, object]:
         """Return AI Router pool status (key slots, busy counts, etc.)."""
         return self._get_router().summary()
 
 
 # Singleton instance
-_client: Optional[OllamaClient] = None
+_client: OllamaClient | None = None
 
 
 def get_llm_client() -> OllamaClient:

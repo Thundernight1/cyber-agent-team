@@ -4,14 +4,13 @@ HITL Middleware - Human-in-the-Loop Intervention System
 Integrates with PurpleLeadOrchestrator._process_task_queue()
 Pattern: Intercept after tool execution, before agent analysis
 """
+from __future__ import annotations
 
 import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
 
-from config.settings import TEAM_ROSTER
 from core.base_agent import AgentTask, SharedState
 from core.hitl_types import (
     ConfidenceScore,
@@ -152,7 +151,7 @@ TASK_RISK_POLICIES = {
 }
 
 
-def get_task_policy(task_type: str) -> Dict[str, Any]:
+def get_task_policy(task_type: str) -> dict[str, object]:
     """Get risk policy for a task type, fallback to safe defaults."""
     return TASK_RISK_POLICIES.get(task_type, {
         "risk_level": RiskLevel.MEDIUM,
@@ -223,7 +222,7 @@ class HITLMiddleware:
         self,
         task: AgentTask,
         shared_state: SharedState,
-        tool_result: Optional[Dict[str, Any]] = None,
+        tool_result: dict[str, object] | None = None,
     ) -> HITLDecision:
         """
         Evaluate if human intervention is required.
@@ -316,12 +315,11 @@ class HITLMiddleware:
         self,
         request: InterventionRequest,
         check_interval: float = 1.0,
-    ) -> Optional[InterventionResponse]:
+    ) -> InterventionResponse | None:
         """
         Blocking wait for human approval with timeout.
         Polls for response at check_interval seconds.
         """
-        import time
         from core.hitl_types import _responses
         
         start_time = datetime.now(timezone.utc)
@@ -352,7 +350,7 @@ class HITLMiddleware:
             # Wait before next check
             await asyncio.sleep(check_interval)
     
-    def get_pending_requests(self) -> List[InterventionRequest]:
+    def get_pending_requests(self) -> list[InterventionRequest]:
         """Get all pending intervention requests."""
         return get_pending_interventions()
     
@@ -360,14 +358,14 @@ class HITLMiddleware:
         """Submit human response to an intervention request."""
         return submit_response(response)
     
-    def get_intervention_status(self, request_id: str) -> Optional[InterventionRequest]:
+    def get_intervention_status(self, request_id: str) -> InterventionRequest | None:
         """Get status of a specific intervention request."""
         from core.hitl_types import _intervention_queue
         return _intervention_queue.get(request_id)
 
 
 # Global middleware instance (singleton pattern)
-_hitl_middleware: Optional[HITLMiddleware] = None
+_hitl_middleware: HITLMiddleware | None = None
 
 
 def get_hitl_middleware(enabled: bool = True) -> HITLMiddleware:

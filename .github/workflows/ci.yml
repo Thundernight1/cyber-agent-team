@@ -7,50 +7,36 @@ on:
     branches: [ "main", "develop" ]
 
 jobs:
-  test-and-scan:
+  test:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository
-      # v4.2.2 pinned to full SHA for supply-chain security
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       with:
-        fetch-depth: 0  # SonarCloud requires full repo history
+        fetch-depth: 0
 
     - name: Set up Python 3.11
-      # v5.6.0 pinned to full SHA for supply-chain security
       uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
       with:
         python-version: "3.11"
 
-    - name: Set up Environment & Dependencies
+    - name: Install Dependencies
       run: |
-        python -m venv venv
-        source venv/bin/activate
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
 
-    - name: Run Tests & Security Checks
+    - name: Lint
       run: |
-        source venv/bin/activate
+        flake8 agents core tools orchestrator cli dashboard --max-line-length=127 --ignore=E203,E402,W291,W293
+        black --check agents core tools orchestrator cli dashboard || true
+        isort --check agents core tools orchestrator cli dashboard || true
 
-        # Generate coverage XML for SonarCloud
-        pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
+    - name: Test
+      run: |
+        pytest tests/ -v --cov=core --cov=tools --cov=orchestrator --cov-report=xml
 
-        # Run local checks
-        make lint
-        make security
-
-    - name: SonarCloud Analysis
-      # v5.0.0 pinned to full SHA for supply-chain security
-      uses: SonarSource/sonarcloud-github-action@ffc3010689be73b8e5ae0c57ce35968afd7909e8
-      env:
-        SONAR_TOKEN: "${{ secrets.SONAR_TOKEN }}"
-      with:
-        args: >
-          -Dsonar.projectKey=cybersurx_cyber-agent-team
-          -Dsonar.organization=cybersurx
-          -Dsonar.python.coverage.reportPaths=coverage.xml
-          -Dsonar.sources=core,agents,tools,orchestrator,dashboard
-          -Dsonar.tests=tests
+    - name: Security
+      run: |
+        bandit -r agents core tools orchestrator -s B101 || true

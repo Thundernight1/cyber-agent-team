@@ -26,17 +26,6 @@ source ~/.zshrc
 
 ---
 
-## 2. SHODAN DURUMU
-
-- **MCP Connector** → Zaten bağlı ve çalışıyor (host lookup, search, CVE)
-- **Python API Key** (`Jvhe8MRaHvH9u9BU6P40wWgTDSYgODva`) → OSS plan, sorgu kredisi sıfır
-  - Tam erişim için: https://account.shodan.io → Upgrade ($49/ay)
-  - Veya ek sorgu kredisi satın alın
-
-settings.py'e kaydedildi, key hazır.
-
----
-
 ## 3. DOCKER İLE KALİ LİNUX HEDEF ORTAMI
 
 Terminal 1 — Kali hedef (savunmasız servislerle):
@@ -103,7 +92,6 @@ cd /path/to/cyber-agent-team
 
 # Env ayarları
 export OLLAMA_API_KEY="sk-ollama-xxxxx"
-export SHODAN_API_KEY="Jvhe8MRaHvH9u9BU6P40wWgTDSYgODva"
 
 # Test runner (Python-native)
 python3 test_runner.py
@@ -143,8 +131,7 @@ Rapor: reports/ klasörüne kaydedilir
 |---------|-------|-----|
 | Python altyapısı | ✅ Çalışıyor | 17 ajan yüklü |
 | SharedState akışı | ✅ Test edildi | 3 katman doğrulandı |
-| Shodan MCP | ✅ Çalışıyor | Host lookup, CVE search |
-| Shodan Python API | ⚠️ OSS plan | Upgrade gerekli |
+
 | Ollama Cloud | ⚠️ Key lazım | ollama.com'dan al |
 | Nmap/Nuclei/Nikto | ❌ Kurulmadı | `brew install` ile kur |
 | Docker hedef | ❌ Kurulmadı | Yukarıdaki komut |

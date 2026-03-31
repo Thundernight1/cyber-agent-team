@@ -11,27 +11,30 @@ import logging
 import os
 import sys
 from datetime import datetime
+from typing import final
 
 # Proje kök dizinini path'e ekle
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.settings import MODEL_ASSIGNMENTS, TEAM_ROSTER
-from orchestrator.purple_lead import PurpleLeadOrchestrator
-from tools.security_tools import ToolFactory
+from config.settings import TEAM_ROSTER  # noqa: E402
+from orchestrator.purple_lead import PurpleLeadOrchestrator  # noqa: E402
+
+logger = logging.getLogger("cyber-agent.cli")
 
 
 # Renk kodları
+@final
 class C:
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    MAGENTA = "\033[95m"
-    CYAN = "\033[96m"
-    WHITE = "\033[97m"
-    BOLD = "\033[1m"
-    DIM = "\033[2m"
-    RESET = "\033[0m"
+    RED: str = "\033[91m"
+    GREEN: str = "\033[92m"
+    YELLOW: str = "\033[93m"
+    BLUE: str = "\033[94m"
+    MAGENTA: str = "\033[95m"
+    CYAN: str = "\033[96m"
+    WHITE: str = "\033[97m"
+    BOLD: str = "\033[1m"
+    DIM: str = "\033[2m"
+    RESET: str = "\033[0m"
 
 
 BANNER = f"""
@@ -218,14 +221,13 @@ async def interactive_mode():
 
             elif cmd == "help":
                 print(f"\n{C.BOLD}Usage Examples:{C.RESET}")
-                print(f"  scan 192.168.1.0/24    - Full network assessment")
-                print(f"  scan example.com       - Scan a domain")
-                print(f"  recon 10.0.0.1         - Recon only")
-                print(f"  vuln example.com       - Vulnerability scan")
-                print(f"  tool nmap 192.168.1.1  - Run Nmap only")
-                print(f"  tool nuclei example.com - Run Nuclei scan")
-                print(f"  tool shodan 1.2.3.4    - Shodan lookup")
-                print(f"  agent vulnerability_analysis 'Analyze services'")
+                print("  scan 192.168.1.0/24    - Full network assessment")
+                print("  scan example.com       - Scan a domain")
+                print("  recon 10.0.0.1         - Recon only")
+                print("  vuln example.com       - Vulnerability scan")
+                print("  tool nmap 192.168.1.1  - Run Nmap only")
+                print("  tool nuclei example.com - Run Nuclei scan")
+                print("  agent vulnerability_analysis 'Analyze services'")
 
             else:
                 # Serbest metin: orkestratöre gönder

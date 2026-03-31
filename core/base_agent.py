@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Cyber Agent Team - Base Agent & Shared State
 =============================================
@@ -14,7 +16,10 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+
+# Simple type alias: JSON-like dict where values can be anything serializable.
+# Using 'object' avoids recursive type variance issues with basedpyright.
+JSONDict = dict[str, object]
 
 logger = logging.getLogger("cyber-agent.base")
 
@@ -53,7 +58,7 @@ class AgentTask:
     status: str = "pending"
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, str | int]:
         return {
             "task_id": self.task_id,
             "type": self.type,
@@ -76,12 +81,12 @@ class TaskResult:
     task_id: str
     status: str = "completed"  # completed | failed | skipped
     output: str = ""
-    findings: list[Any] = field(default_factory=list)
-    next_tasks: list[Any] = field(default_factory=list)
+    findings: list[JSONDict] = field(default_factory=list)
+    next_tasks: list[JSONDict] = field(default_factory=list)
     error: str = ""
     duration_ms: int = 0
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> JSONDict:
         return {
             "agent_id": self.agent_id,
             "agent_name": self.agent_name,
@@ -106,31 +111,31 @@ class SharedState:
 
     session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     target: str = ""
-    scope: dict[str, Any] = field(default_factory=dict)
+    scope: JSONDict = field(default_factory=dict)
 
     # Task queue (priority-ordered list of AgentTask dicts)
-    task_queue: list[dict[str, Any]] = field(default_factory=list)
-    completed_tasks: list[dict[str, Any]] = field(default_factory=list)
+    task_queue: list[dict[str, str | int]] = field(default_factory=list)
+    completed_tasks: list[JSONDict] = field(default_factory=list)
 
     # Evidence / findings accumulated across agents
-    raw_logs: list[Any] = field(default_factory=list)
-    hosts: list[Any] = field(default_factory=list)
-    ports: list[Any] = field(default_factory=list)
-    services: list[Any] = field(default_factory=list)
-    vulnerabilities: list[Any] = field(default_factory=list)
-    attack_paths: list[Any] = field(default_factory=list)
-    risk_priority: list[Any] = field(default_factory=list)
-    detection_gaps: list[Any] = field(default_factory=list)
-    mitigation_plan: list[Any] = field(default_factory=list)
+    raw_logs: list[str] = field(default_factory=list)
+    hosts: list[str] = field(default_factory=list)
+    ports: list[str | int] = field(default_factory=list)
+    services: list[JSONDict] = field(default_factory=list)
+    vulnerabilities: list[JSONDict] = field(default_factory=list)
+    attack_paths: list[JSONDict] = field(default_factory=list)
+    risk_priority: list[JSONDict] = field(default_factory=list)
+    detection_gaps: list[JSONDict] = field(default_factory=list)
+    mitigation_plan: list[JSONDict] = field(default_factory=list)
 
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def add_task(self, task: AgentTask):
         """Insert task into queue sorted by priority (lowest int = highest priority)."""
         self.task_queue.append(task.to_dict())
-        self.task_queue.sort(key=lambda t: t.get("priority", 99))
+        self.task_queue.sort(key=lambda t: int(t.get("priority", 99)))
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> JSONDict:
         return {
             "session_id": self.session_id,
             "target": self.target,
@@ -163,6 +168,19 @@ class BaseAgent:
                   model=..., description=..., tools=[...])
     """
 
+    # Class-level type annotations for instance attributes
+    agent_id: str
+    name: str
+    role: str
+    layer: AgentLayer
+    model: str
+    description: str
+    tools: list[str]
+    config: dict[str, str]
+    status: AgentStatus
+    _task_count: int
+    logger: logging.Logger
+
     def __init__(
         self,
         name: str,
@@ -172,9 +190,9 @@ class BaseAgent:
         model: str = "",
         description: str = "",
         tools: list[str] | None = None,
-        config: dict[str, Any] | None = None,
-        **kwargs,  # absorb any extra keyword args from subclasses
-    ):
+        config: dict[str, str] | None = None,
+        **kwargs: str,  # absorb any extra keyword args from subclasses
+    ) -> None:
         self.agent_id = agent_id or str(uuid.uuid4())[:8]
         self.name = name
         self.role = role
@@ -194,7 +212,7 @@ class BaseAgent:
         self,
         task: str,
         shared_state: SharedState | None = None,
-        tool_result: dict[str, Any] | None = None,
+        tool_result: JSONDict | None = None,
     ) -> TaskResult:
         """
         Execute a task. Subclasses override this for specialised behaviour.
@@ -232,7 +250,7 @@ class BaseAgent:
                 error=str(exc),
             )
 
-    def get_status(self) -> dict[str, Any]:
+    def get_status(self) -> JSONDict:
         return {
             "agent_id": self.agent_id,
             "name": self.name,
@@ -246,7 +264,7 @@ class BaseAgent:
 
     # ── For subclass compatibility (legacy sync interface) ────────────────────
 
-    def execute(self, task: str) -> dict[str, Any]:
+    def execute(self, task: str) -> dict[str, str]:
         """Synchronous execute — kept for backwards compat with operator subclasses."""
         return {"status": "ok", "agent": self.name, "task": task}
 
@@ -256,7 +274,7 @@ class BaseAgent:
         self,
         task: str,
         shared_state: SharedState | None,
-        tool_result: dict[str, Any] | None,
+        tool_result: JSONDict | None,
     ) -> str:
         """
         Default processing logic.

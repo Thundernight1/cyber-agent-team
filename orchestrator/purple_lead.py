@@ -13,7 +13,7 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+
 
 from config.settings import MODEL_ASSIGNMENTS, TEAM_ROSTER
 from core.base_agent import (AgentLayer, AgentStatus, AgentTask, BaseAgent,
@@ -42,7 +42,7 @@ class AgentTeam:
     """Ekibi tanımlar; başlatma sırasında tüm ajanlar IDLE kalır."""
 
     def __init__(self):
-        self.agents: Dict[str, BaseAgent] = {}
+        self.agents: dict[str, BaseAgent] = {}
 
     def initialize(self):
         for agent_id, profile in TEAM_ROSTER.items():
@@ -65,10 +65,10 @@ class AgentTeam:
         logger.info(f"Ekip hazır: {len(self.agents)} ajan tanımlandı (hepsi IDLE)")
         return self.agents
 
-    def get_agent(self, agent_id: str) -> Optional[BaseAgent]:
+    def get_agent(self, agent_id: str) -> BaseAgent | None:
         return self.agents.get(agent_id)
 
-    def get_agent_for_task_type(self, task_type: str) -> Optional[BaseAgent]:
+    def get_agent_for_task_type(self, task_type: str) -> BaseAgent | None:
         """Map task type to best suitable agent."""
         # Simple mapping for now, can be enhanced with AI Router later
         mapping = {
@@ -92,7 +92,7 @@ class AgentTeam:
         agent_id = mapping.get(task_type)
         return self.agents.get(agent_id)
 
-    def status_all(self) -> List[Dict]:
+    def status_all(self) -> list[dict[str, object]]:
         return [agent.get_status() for agent in self.agents.values()]
 
 
@@ -108,10 +108,10 @@ class PurpleLeadOrchestrator:
         self.llm = get_llm_client()
         self.session_id = str(uuid.uuid4())[:8]
         self._initialized = False
-        self.hitl_middleware: Optional[HITLMiddleware] = None
+        self.hitl_middleware: HITLMiddleware | None = None
 
-    async def initialize(self, shodan_api_key: str = None, hitl_enabled: bool = True):
-        shodan_api_key = shodan_api_key or os.getenv("SHODAN_API_KEY")
+    async def initialize(self, hitl_enabled: bool = True):
+
         logger.info("=" * 60)
         logger.info("PURPLE TEAM — DYNAMIC ORCHESTRATOR BAŞLIYOR")
         logger.info("=" * 60)
@@ -120,7 +120,7 @@ class PurpleLeadOrchestrator:
         self.hitl_middleware = get_hitl_middleware(enabled=hitl_enabled)
         logger.info(f"HITL System: {'ENABLED' if hitl_enabled else 'DISABLED'}")
 
-        ToolFactory.initialize(shodan_api_key=shodan_api_key)
+        ToolFactory.initialize()
         self.team.initialize()
 
         health = await self.llm.health_check()
@@ -136,7 +136,7 @@ class PurpleLeadOrchestrator:
             "hitl_enabled": hitl_enabled,
         }
 
-    async def run_full_assessment(self, target: str, scope: Dict = None) -> Dict:
+    async def run_full_assessment(self, target: str, scope: dict[str, object] | None = None) -> dict[str, object]:
         if not self._initialized:
             await self.initialize()
 
@@ -188,7 +188,7 @@ class PurpleLeadOrchestrator:
             "summary": self._generate_summary(),
         }
 
-    async def run_recon_only(self, target: str) -> Dict:
+    async def run_recon_only(self, target: str) -> dict[str, object]:
         """Compatibility wrapper for CLI 'recon' command."""
         if not self._initialized:
             await self.initialize()
@@ -214,7 +214,7 @@ class PurpleLeadOrchestrator:
             "tasks_completed": len(self.state.completed_tasks),
         }
 
-    async def run_vuln_assessment(self, target: str) -> Dict:
+    async def run_vuln_assessment(self, target: str) -> dict[str, object]:
         """Compatibility wrapper for CLI 'vuln' command."""
         if not self._initialized:
             await self.initialize()
@@ -258,7 +258,7 @@ class PurpleLeadOrchestrator:
 
         return await agent.execute_task(task, self.state)
 
-    async def run_tool_scan(self, tool_name: str, **kwargs) -> Dict:
+    async def run_tool_scan(self, tool_name: str, **kwargs: object) -> dict[str, object]:
         """Run a tool manually (CLI compatibility)."""
         tool = ToolFactory.get(tool_name)
         if not tool:
@@ -382,7 +382,7 @@ class PurpleLeadOrchestrator:
             logger.error(f"Tool execution failed: {e}")
             return None
 
-    def _generate_summary(self) -> Dict:
+    def _generate_summary(self) -> dict[str, int]:
         return {
             "total_hosts": len(self.state.hosts),
             "total_ports": len(self.state.ports),
@@ -396,8 +396,8 @@ class PurpleLeadOrchestrator:
             "mitigations": len(self.state.mitigation_plan),
         }
 
-    def get_state(self) -> Dict:
+    def get_state(self) -> dict[str, object]:
         return self.state.to_dict()
 
-    def get_tool_status(self) -> List[Dict]:
+    def get_tool_status(self) -> list[dict[str, object]]:
         return ToolFactory.status_report()

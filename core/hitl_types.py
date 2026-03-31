@@ -3,12 +3,11 @@ HITL Core Types - Human-in-the-Loop Intervention System
 ==========================================================
 Mirrors patterns from base_agent.py (dataclass, to_dict, enums)
 """
+from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional
 
 
 class InterventionType(Enum):
@@ -40,12 +39,12 @@ class ConfidenceScore:
     """Confidence assessment for a task."""
     score: float  # 0.0 to 1.0
     reasoning: str
-    factors: List[str] = field(default_factory=list)
+    factors: list[str] = field(default_factory=list)
     
     def is_high_confidence(self, threshold: float = 0.8) -> bool:
         return self.score >= threshold
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "score": self.score,
             "reasoning": self.reasoning,
@@ -69,9 +68,9 @@ class InterventionRequest:
     status: InterventionStatus
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     timeout_seconds: int = 300  # 5 minutes default
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, object] = field(default_factory=dict)
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "request_id": self.request_id,
             "task_id": self.task_id,
@@ -96,9 +95,9 @@ class InterventionResponse:
     responder_name: str
     response_time: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     notes: str = ""
-    conditions: Dict[str, Any] = field(default_factory=dict)
+    conditions: dict[str, object] = field(default_factory=dict)
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "request_id": self.request_id,
             "approved": self.approved,
@@ -115,10 +114,10 @@ class HITLDecision:
     """Final decision from HITL middleware."""
     proceed: bool
     intervention_type: InterventionType
-    request: Optional[InterventionRequest] = None
+    request: InterventionRequest | None = None
     reason: str = ""
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "proceed": self.proceed,
             "intervention_type": self.intervention_type.name,
@@ -128,8 +127,8 @@ class HITLDecision:
 
 
 # Intervention queue storage (in-memory, can be replaced with Redis)
-_intervention_queue: Dict[str, InterventionRequest] = {}
-_responses: Dict[str, InterventionResponse] = {}
+_intervention_queue: dict[str, InterventionRequest] = {}
+_responses: dict[str, InterventionResponse] = {}
 
 
 def queue_intervention(request: InterventionRequest) -> None:
@@ -137,12 +136,12 @@ def queue_intervention(request: InterventionRequest) -> None:
     _intervention_queue[request.request_id] = request
 
 
-def get_intervention(request_id: str) -> Optional[InterventionRequest]:
+def get_intervention(request_id: str) -> InterventionRequest | None:
     """Get intervention request by ID."""
     return _intervention_queue.get(request_id)
 
 
-def get_pending_interventions() -> List[InterventionRequest]:
+def get_pending_interventions() -> list[InterventionRequest]:
     """Get all pending intervention requests."""
     return [
         req for req in _intervention_queue.values()
@@ -161,6 +160,6 @@ def submit_response(response: InterventionResponse) -> bool:
     return True
 
 
-def get_response(request_id: str) -> Optional[InterventionResponse]:
+def get_response(request_id: str) -> InterventionResponse | None:
     """Get response for an intervention request."""
     return _responses.get(request_id)
