@@ -356,8 +356,6 @@ class MetasploitTool(BaseTool):
 # ============================================================
 
 
-
-
 class WhoisTool(BaseTool):
     """Whois - Domain/IP OSINT (Ücretsiz ve sınırsız)."""
 
