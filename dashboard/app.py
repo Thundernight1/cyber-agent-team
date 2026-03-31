@@ -49,13 +49,17 @@ def get_reports():
 
 @app.route("/api/report/<filename>")
 def get_report_detail(filename):
-    # Security check: ensure filename is just a filename and not a path
-    if ".." in filename or os.path.sep in filename:
+    # Build path inside the reports directory and normalise it
+    filepath = os.path.join(REPORTS_DIR, filename)
+    safe_base = os.path.realpath(REPORTS_DIR)
+    safe_path = os.path.realpath(filepath)
+
+    # Ensure the resolved path is within the reports directory and has the expected extension
+    if not safe_path.startswith(safe_base + os.path.sep) or not filename.endswith(".json"):
         return jsonify({"error": "Invalid filename"}), 400
 
-    filepath = os.path.join(REPORTS_DIR, filename)
-    if os.path.exists(filepath) and filename.endswith(".json"):
-        with open(filepath, "r") as f:
+    if os.path.exists(safe_path):
+        with open(safe_path, "r") as f:
             try:
                 data = json.load(f)
                 return jsonify(data)
