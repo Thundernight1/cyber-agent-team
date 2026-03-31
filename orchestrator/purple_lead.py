@@ -8,16 +8,13 @@ Refactored to support the "No-Fake" mandate:
 """
 
 import asyncio
-import json
 import logging
-import os
 import uuid
 from datetime import datetime
 
 
-from config.settings import MODEL_ASSIGNMENTS, TEAM_ROSTER
-from core.base_agent import (AgentLayer, AgentStatus, AgentTask, BaseAgent,
-                             SharedState, TaskResult)
+from config.settings import TEAM_ROSTER
+from core.base_agent import (AgentLayer, AgentTask, BaseAgent, SharedState, TaskResult)
 from core.hitl_middleware import get_hitl_middleware, HITLMiddleware
 from core.llm_client import get_llm_client
 from tools.security_tools import ToolFactory
@@ -328,7 +325,7 @@ class PurpleLeadOrchestrator:
             # 3. Run Agent (Analysis)
             try:
                 # Agent analyzes the tool output (or existing state)
-                result = await agent.execute_task(
+                await agent.execute_task(
                     task=current_task.description,
                     shared_state=self.state,
                     tool_result=tool_result.to_dict() if tool_result else None,
