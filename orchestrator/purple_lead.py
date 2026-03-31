@@ -18,6 +18,7 @@ from typing import Dict, List, Optional
 from config.settings import MODEL_ASSIGNMENTS, TEAM_ROSTER
 from core.base_agent import (AgentLayer, AgentStatus, AgentTask, BaseAgent,
                              SharedState, TaskResult)
+from core.hitl_middleware import get_hitl_middleware, HITLMiddleware
 from core.llm_client import get_llm_client
 from tools.security_tools import ToolFactory
 
@@ -107,12 +108,17 @@ class PurpleLeadOrchestrator:
         self.llm = get_llm_client()
         self.session_id = str(uuid.uuid4())[:8]
         self._initialized = False
+        self.hitl_middleware: Optional[HITLMiddleware] = None
 
-    async def initialize(self, shodan_api_key: str = None):
+    async def initialize(self, shodan_api_key: str = None, hitl_enabled: bool = True):
         shodan_api_key = shodan_api_key or os.getenv("SHODAN_API_KEY")
         logger.info("=" * 60)
         logger.info("PURPLE TEAM — DYNAMIC ORCHESTRATOR BAŞLIYOR")
         logger.info("=" * 60)
+
+        # Initialize HITL middleware
+        self.hitl_middleware = get_hitl_middleware(enabled=hitl_enabled)
+        logger.info(f"HITL System: {'ENABLED' if hitl_enabled else 'DISABLED'}")
 
         ToolFactory.initialize(shodan_api_key=shodan_api_key)
         self.team.initialize()
@@ -127,6 +133,7 @@ class PurpleLeadOrchestrator:
             "execution_mode": "DYNAMIC — Task Queue & Evidence Based",
             "llm_health": health,  # Added for CLI compatibility
             "tools": ToolFactory.status_report(),  # Added for CLI compatibility
+            "hitl_enabled": hitl_enabled,
         }
 
     async def run_full_assessment(self, target: str, scope: Dict = None) -> Dict:
@@ -293,6 +300,30 @@ class PurpleLeadOrchestrator:
 
             # 2. Run Tool (Evidence Collection)
             tool_result = await self._execute_tool_for_task(current_task)
+
+            # 2.5 HITL Evaluation (after tool, before agent)
+            if self.hitl_middleware:
+                hitl_decision = await self.hitl_middleware.evaluate_task(
+                    task=current_task,
+                    shared_state=self.state,
+                    tool_result=tool_result.to_dict() if tool_result else None,
+                )
+                
+                if not hitl_decision.proceed:
+                    logger.warning(
+                        f"HITL REJECTED: Task {current_task.task_id} "
+                        f"({current_task.type}) - {hitl_decision.reason}"
+                    )
+                    current_task.status = "rejected"
+                    self.state.completed_tasks.append(current_task.to_dict())
+                    cycle += 1
+                    continue
+                
+                if hitl_decision.intervention_type.name == "BLOCKING_APPROVAL":
+                    logger.info(
+                        f"HITL APPROVED: Task {current_task.task_id} "
+                        f"({current_task.type}) - {hitl_decision.reason}"
+                    )
 
             # 3. Run Agent (Analysis)
             try:
