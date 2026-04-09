@@ -19,6 +19,9 @@ def test_dashboard_fails_without_secret_key():
 
     python_code = "from dashboard.app import app"
 
+    # Ensure PYTHONPATH includes the current directory
+    env["PYTHONPATH"] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     process = subprocess.Popen(
         [sys.executable, "-c", python_code],
         env=env,
@@ -37,6 +40,9 @@ def test_dashboard_starts_with_secret_key():
     env["DASHBOARD_SECRET_KEY"] = "test-secret-key"
 
     python_code = "from dashboard.app import app; print('Success')"
+
+    # Ensure PYTHONPATH includes the current directory
+    env["PYTHONPATH"] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     process = subprocess.Popen(
         [sys.executable, "-c", python_code],
