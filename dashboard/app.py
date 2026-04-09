@@ -9,8 +9,10 @@ from flask import Flask, jsonify, render_template
 load_dotenv()
 
 app = Flask(__name__)
-# Use environment variable for secret key, fallback to a default only in dev
-app.secret_key = os.getenv("DASHBOARD_SECRET_KEY", "dev-secret-key-change-me")
+# Use environment variable for secret key
+app.secret_key = os.getenv("DASHBOARD_SECRET_KEY")
+if not app.secret_key:
+    raise RuntimeError("DASHBOARD_SECRET_KEY environment variable is not set. Please configure it for security.")
 
 # Path to the reports directory
 REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports")
