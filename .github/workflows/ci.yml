@@ -17,7 +17,7 @@ jobs:
         fetch-depth: 0  # SonarQube requires full repo history for accurate analysis
         
     - name: Set up Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
         
@@ -41,11 +41,12 @@ jobs:
         make security
         
     - name: SonarQube Analysis
+      if: ${{ secrets.SONAR_TOKEN != '' }}
       # "sen işini bitirdiğin zaman ona yönlendiriyorsun bitiyor zaten işlem" - user instruction applies here.
-      uses: SonarSource/sonarqube-scan-action@master
+      uses: SonarSource/sonarqube-scan-action@v5
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
       with:
         args: >
           -Dsonar.projectKey=cyber-agent-team
