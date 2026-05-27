@@ -16,8 +16,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from config.settings import MODEL_ASSIGNMENTS, TEAM_ROSTER
-from core.base_agent import (AgentLayer, AgentStatus, AgentTask, BaseAgent,
-                             SharedState, TaskResult)
+from core.base_agent import AgentLayer, AgentStatus, AgentTask, BaseAgent, SharedState, TaskResult
 from core.llm_client import get_llm_client
 from tools.security_tools import ToolFactory
 
@@ -69,7 +68,7 @@ class AgentTeam:
 
     def get_agent_for_task_type(self, task_type: str) -> Optional[BaseAgent]:
         """Map task type to best suitable agent."""
-        # Simple mapping for now, can be enhanced with AI Router later
+        # TODO: Enhance with AI Router for dynamic task-to-agent mapping.
         mapping = {
             "network_scan": "network_operator",
             "port_scan": "network_operator",
@@ -279,9 +278,7 @@ class PurpleLeadOrchestrator:
             current_task = AgentTask(**current_task_dict)
             current_task.status = "in_progress"
 
-            logger.info(
-                f"Processing Task [{cycle}]: {current_task.type} - {current_task.description}"
-            )
+            logger.info(f"Processing Task [{cycle}]: {current_task.type} - {current_task.description}")
 
             # 1. Find Agent
             agent = self.team.get_agent_for_task_type(current_task.type)
@@ -358,9 +355,7 @@ class PurpleLeadOrchestrator:
             "total_services": len(self.state.services),
             "total_vulnerabilities": len(self.state.vulnerabilities),
             "total_attack_paths": len(self.state.attack_paths),
-            "critical_risks": len(
-                [r for r in self.state.risk_priority if r.get("severity") == "critical"]
-            ),
+            "critical_risks": len([r for r in self.state.risk_priority if r.get("severity") == "critical"]),
             "detection_gaps": len(self.state.detection_gaps),
             "mitigations": len(self.state.mitigation_plan),
         }
