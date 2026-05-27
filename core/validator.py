@@ -31,7 +31,7 @@ class EvidenceValidator:
                 continue
 
             # Check parsed output
-            output = log.get("parsed_output") or log.get("output")
+            output = log.get("parsed_output") or log.get("output") or log.get("stdout")
             if not output:
                 continue
 
@@ -44,8 +44,12 @@ class EvidenceValidator:
                                 return True
 
             # Raw string check (fallback)
-            if log.get("stdout") and f"{port}/tcp open" in log["stdout"]:
-                return True
+            stdout = log.get("stdout") or (output if isinstance(output, str) else "")
+            if stdout:
+                # Nmap-style: "80/tcp open"
+                # Masscan-style: "open port 80/tcp"
+                if f"{port}/tcp open" in stdout or f"open port {port}/tcp" in stdout:
+                    return True
 
         return False
 
